@@ -4,9 +4,12 @@
 /* ------------------------------------------------------------------ */
 
 import type { PurchaseRequest } from '../types';
+import type { Action } from '../core/security/actions';
 import { createAuditLogBase } from '../config/auditDefaults';
 import { auditStore } from './auditStore';
 import { purchaseRequestStore } from './purchaseRequestStore';
+import { assertCan } from '../core/security/policyEngine';
+import { getActor } from '../stores/authStore';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -74,12 +77,25 @@ export function canTransition(
  *
  * Throws if the transition is not allowed.
  */
+/** Maps target status to the security action that governs it. */
+const STATUS_ACTION_MAP: Partial<Record<PurchaseRequestStatus, Action>> = {
+  submitted: 'PR_SUBMIT',
+  approved:  'PR_APPROVE',
+  rejected:  'PR_REJECT',
+};
+
 export function transitionPurchaseRequestStatus(
   request: PurchaseRequest,
   currentCanonicalStatus: PurchaseRequestStatus,
   newStatus: PurchaseRequestStatus,
   performedByUserId: string,
 ): TransitionedPurchaseRequest {
+  const action = STATUS_ACTION_MAP[newStatus];
+  if (action) {
+    const actor = getActor();
+    assertCan(actor, action);
+  }
+
   if (!canTransition(currentCanonicalStatus, newStatus)) {
     throw new Error(
       `Invalid status transition from '${currentCanonicalStatus}' to '${newStatus}'.`,

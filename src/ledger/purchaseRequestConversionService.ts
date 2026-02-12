@@ -9,6 +9,8 @@ import type { TransitionedPurchaseRequest } from './purchaseRequestService';
 import { transitionPurchaseRequestStatus } from './purchaseRequestService';
 import { createPurchaseOrderBase, createPurchaseOrderLineBase } from '../config/purchaseOrderDefaults';
 import { purchaseOrderStore } from './purchaseOrderStore';
+import { assertCan } from '../core/security/policyEngine';
+import { getActor } from '../stores/authStore';
 
 /** Accepts both legacy and canonical request shapes. */
 type ConvertibleRequest = PurchaseRequest | TransitionedPurchaseRequest;
@@ -34,6 +36,9 @@ export function convertApprovedRequestToPurchaseOrder(
   purchaseOrder: PurchaseOrder;
   purchaseOrderLines: PurchaseOrderLine[];
 } {
+  const actor = getActor();
+  assertCan(actor, 'PR_CONVERT_TO_PO');
+
   if ((request.status as string) !== 'approved') {
     throw new Error('Only approved requests can be converted.');
   }

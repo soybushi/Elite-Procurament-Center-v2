@@ -8,6 +8,8 @@ import type { PurchaseRequest } from '../types';
 import { createAuditLogBase } from '../config/auditDefaults';
 import { auditStore } from './auditStore';
 import { purchaseRequestStore } from './purchaseRequestStore';
+import { assertCan } from '../core/security/policyEngine';
+import { getActor } from '../stores/authStore';
 
 /**
  * Creates a new PurchaseRequest, persists it in the store,
@@ -26,6 +28,9 @@ export function createPurchaseRequest(
   request: PurchaseRequest,
   performedByUserId: string,
 ): PurchaseRequest {
+  const actor = getActor();
+  assertCan(actor, 'PR_CREATE');
+
   if (request.status !== 'draft') {
     throw new Error('New PurchaseRequest must start in draft status.');
   }
