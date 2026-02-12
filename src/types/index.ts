@@ -145,3 +145,46 @@ export interface Company {
   status: 'active' | 'inactive';
   createdAt: string;
 }
+
+/* --- Canonical Product Model --- */
+
+export type ProductStatus = 'active' | 'inactive' | 'discontinued';
+
+export interface ProductIdentity {
+  companyId: string;
+  productId: string;
+  sku: string;
+}
+
+export interface ProductClassification {
+  categoryId?: string;
+  subcategoryId?: string;
+}
+
+export interface ProductUom {
+  uomId?: string;
+  packSize?: string;
+  unitPerCase?: number;
+}
+
+export interface ProductFlags {
+  trackInventory: boolean;
+  trackCost: boolean;
+  isHardgoods: boolean;
+  isBouquet: boolean;
+  isFlower: boolean;
+}
+
+export interface ProductCore {
+  name: string;
+  description?: string;
+  status: ProductStatus;
+}
+
+export interface Product extends ProductIdentity, ProductCore, ProductClassification, ProductUom {
+  flags: ProductFlags;
+  createdAt: string;
+  updatedAt: string;
+  source?: 'manual' | 'import' | 'erp';
+  externalRefs?: Record<string, string>;
+}
