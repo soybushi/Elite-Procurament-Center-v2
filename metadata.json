@@ -1,0 +1,5 @@
+{
+  "name": "Elite Flower Command Center",
+  "description": "Inventory management dashboard for Elite Flower featuring real-time analytics, inventory tracking, transfers, and AI agent monitoring.",
+  "requestFramePermissions": []
+}

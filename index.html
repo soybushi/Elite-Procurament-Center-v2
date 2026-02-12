@@ -1,0 +1,82 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elite Flower Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"IBM Plex Sans"', 'sans-serif'],
+              mono: ['"IBM Plex Sans"', 'sans-serif'],
+            },
+            fontWeight: {
+              light: '400',
+              normal: '400',
+              medium: '500',
+              semibold: '600',
+              bold: '600', /* Mapped to 600 per requirements */
+              extrabold: '600', /* Mapped to 600 per requirements */
+              black: '600', /* Mapped to 600 per requirements */
+            },
+            colors: {
+              bg: 'var(--bg)',
+              sf: 'var(--sf)',
+              s2: 'var(--s2)',
+              hv: 'var(--hv)',
+              ac: 'var(--ac)',
+              tx: 'var(--tx)',
+              t2: 'var(--t2)',
+              t3: 'var(--t3)',
+              bd: 'var(--bd)',
+              bl: 'var(--bl)',
+              gn: 'var(--gn)',
+              rd: 'var(--rd)',
+              am: 'var(--am)',
+              vi: 'var(--vi)',
+              cy: 'var(--cy)',
+              pk: 'var(--pk)',
+              gl: 'var(--gl)',
+              sc: 'var(--sc)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { 
+        overflow: hidden; 
+        font-feature-settings: "tnum"; 
+        font-variant-numeric: tabular-nums;
+      }
+      /* Custom Scrollbar to match original design */
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--sc); border-radius: 3px; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom": "https://esm.sh/react-dom@^19.2.4",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "papaparse": "https://esm.sh/papaparse@5.4.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
