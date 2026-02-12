@@ -188,3 +188,45 @@ export interface Product extends ProductIdentity, ProductCore, ProductClassifica
   source?: 'manual' | 'import' | 'erp';
   externalRefs?: Record<string, string>;
 }
+
+/* --- Movement Ledger Model --- */
+
+export type MovementType = 'receipt' | 'issue' | 'adjustment' | 'transfer';
+
+export type MovementSource = 'manual' | 'import' | 'erp';
+
+export interface MovementIdentity {
+  companyId: string;
+  movementId: string;
+}
+
+export interface MovementRefs {
+  warehouseId: string;
+  warehouseIdTo?: string;
+  productId?: string;
+  sku: string;
+  supplierId?: string;
+  documentId?: string;
+  externalRefs?: Record<string, string>;
+}
+
+export interface MovementQuantities {
+  qty: number;
+  uomId?: string;
+  unitCost?: number;
+  totalCost?: number;
+}
+
+export interface MovementAudit {
+  occurredAt: string;
+  createdAt: string;
+  createdBy?: string;
+  note?: string;
+  source: MovementSource;
+}
+
+export interface MovementCore {
+  type: MovementType;
+}
+
+export interface Movement extends MovementIdentity, MovementCore, MovementRefs, MovementQuantities, MovementAudit {}
