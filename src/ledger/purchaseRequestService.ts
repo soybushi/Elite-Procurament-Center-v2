@@ -6,6 +6,7 @@
 import type { PurchaseRequest } from '../types';
 import { createAuditLogBase } from '../config/auditDefaults';
 import { auditStore } from './auditStore';
+import { purchaseRequestStore } from './purchaseRequestStore';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -118,6 +119,16 @@ export function transitionPurchaseRequestStatus(
   );
 
   auditStore.addLog(log);
+
+  // Persist updated request in the store.
+  const exists = purchaseRequestStore.getState().purchaseRequests.find(
+    (r) => r.id === request.id,
+  );
+  if (exists) {
+    purchaseRequestStore.updateRequest(updated as unknown as PurchaseRequest);
+  } else {
+    purchaseRequestStore.addRequest(updated as unknown as PurchaseRequest);
+  }
 
   return updated;
 }

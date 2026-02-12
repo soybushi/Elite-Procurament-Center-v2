@@ -6,9 +6,9 @@
 
 import type { PurchaseRequest, RequestItem, PurchaseOrder, PurchaseOrderLine } from '../types';
 import type { TransitionedPurchaseRequest } from './purchaseRequestService';
+import { transitionPurchaseRequestStatus } from './purchaseRequestService';
 import { createPurchaseOrderBase, createPurchaseOrderLineBase } from '../config/purchaseOrderDefaults';
-import { createAuditLogBase } from '../config/auditDefaults';
-import { auditStore } from './auditStore';
+import { purchaseOrderStore } from './purchaseOrderStore';
 
 /** Accepts both legacy and canonical request shapes. */
 type ConvertibleRequest = PurchaseRequest | TransitionedPurchaseRequest;
@@ -20,7 +20,7 @@ type ConvertibleRequest = PurchaseRequest | TransitionedPurchaseRequest;
  * - Validates that the request status is 'approved'.
  * - Creates a PurchaseOrder via `createPurchaseOrderBase`.
  * - Maps each `RequestItem` to a `PurchaseOrderLine`.
- * - Records a 'converted' AuditLog entry.
+ * - Records a 'converted' audit entry via `transitionPurchaseRequestStatus`.
  *
  * @param request  The PurchaseRequest to convert (must be approved).
  * @param lines    The request items to map into PO lines.
@@ -36,6 +36,14 @@ export function convertApprovedRequestToPurchaseOrder(
 } {
   if ((request.status as string) !== 'approved') {
     throw new Error('Only approved requests can be converted.');
+  }
+
+  // Guard against double conversion.
+  const existing = purchaseOrderStore.getState().purchaseOrders.find(
+    (order) => order.orderNumber === request.id,
+  );
+  if (existing) {
+    throw new Error('PurchaseRequest already converted to PurchaseOrder.');
   }
 
   const now = new Date().toISOString();
@@ -60,18 +68,16 @@ export function convertApprovedRequestToPurchaseOrder(
     ),
   );
 
-  // Record audit log.
-  const log = createAuditLogBase(
-    request.wh,
-    'purchase_request',
-    request.id,
+  // Persist order and lines in the PO store.
+  purchaseOrderStore.addOrder(purchaseOrder);
+  purchaseOrderStore.addLines(purchaseOrderLines);
+
+  // Transition request to 'converted' via the official state machine.
+  const updatedRequest = transitionPurchaseRequestStatus(
+    request,
     'converted',
     performedByUserId,
-    'approved',           // fromValue
-    'converted',          // toValue
   );
-
-  auditStore.addLog(log);
 
   return { purchaseOrder, purchaseOrderLines };
 }
