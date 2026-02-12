@@ -82,7 +82,7 @@ const DateInput = ({ value, onChange, placeholder, className }: any) => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const startDay = new Date(year, month, 1).getDay(); 
     
-    const days = [];
+    const days: React.ReactNode[] = [];
     for(let i=0; i<startDay; i++) days.push(<div key={`e-${i}`} />);
     for(let i=1; i<=daysInMonth; i++) {
         const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
@@ -1545,7 +1545,7 @@ const InternalRequestDetails = ({ req, onSave, onClose, hist, sup, prc, inv, mas
 
     const applyGen = () => {
         if(!genConfig.start || !genConfig.qty || !genConfig.count) return;
-        const newSplits = [];
+        const newSplits: { id: string; date: string; qty: string }[] = [];
         let curr = new Date(genConfig.start + 'T12:00:00'); 
         const count = parseInt(genConfig.count) || 1;
         const freq = parseInt(genConfig.freq) || 7;
@@ -2004,7 +2004,7 @@ const InternalRequestDetails = ({ req, onSave, onClose, hist, sup, prc, inv, mas
                                                                <div className="mt-4 grid grid-cols-2 gap-2">
                                                                    <div className="bg-s2/50 p-2 rounded-lg border border-bd/50">
                                                                        <div className="text-[9px] text-t3 uppercase font-bold mb-0.5">Consumo Prom.</div>
-                                                                       <div className="text-xs font-black text-tx">{(productStats.avgMonthly || 0).toLocaleString()}</div>
+                                                                       <div className="text-xs font-black text-tx">{(productStats.avgConsumption || 0).toLocaleString()}</div>
                                                                    </div>
                                                                    <div className="bg-s2/50 p-2 rounded-lg border border-bd/50">
                                                                         <div className="text-[9px] text-t3 uppercase font-bold mb-0.5">Última Compra</div>
