@@ -1,4 +1,5 @@
 import type { Movement, MovementType, MovementSource } from '../types';
+import { DEFAULT_SYSTEM_CONFIG } from './systemConfig';
 
 /**
  * Returns sensible defaults for a new Movement record.
@@ -29,6 +30,13 @@ export function createMovementBase(
   qty: number,
   occurredAtISO: string,
 ): Movement {
+  if (
+    DEFAULT_SYSTEM_CONFIG.cutoverDateISO != null &&
+    new Date(occurredAtISO) < new Date(DEFAULT_SYSTEM_CONFIG.cutoverDateISO)
+  ) {
+    throw new Error('Movement date is before system cutover date. Operation blocked.');
+  }
+
   const defaults = buildMovementDefaults();
   return {
     companyId,

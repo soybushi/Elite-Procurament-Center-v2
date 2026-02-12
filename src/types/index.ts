@@ -193,7 +193,7 @@ export interface Product extends ProductIdentity, ProductCore, ProductClassifica
 
 export type MovementType = 'receipt' | 'issue' | 'adjustment' | 'transfer';
 
-export type MovementSource = 'manual' | 'import' | 'erp';
+export type MovementSource = 'manual' | 'import' | 'erp' | 'migration';
 
 export interface MovementIdentity {
   companyId: string;
@@ -259,4 +259,63 @@ export interface PurchaseOrderLine {
   unitPriceOrdered: number;
   currency: string;
   status: PurchaseOrderLineStatus;
+}
+
+/* --- Canonical Supplier Model --- */
+
+export type SupplierStatus = 'active' | 'inactive';
+
+export interface Supplier {
+  id: string;
+  companyId: string;
+  name: string;
+  status: SupplierStatus;
+  email?: string;
+  phone?: string;
+  createdAt: string;
+  updatedAt: string;
+  source?: 'manual' | 'import' | 'erp';
+  externalRefs?: Record<string, string>;
+}
+
+export interface SupplierPrice {
+  id: string;
+  companyId: string;
+  supplierId: string;
+  sku: string;
+  unitPrice: number;
+  currency: string;
+  validFrom: string;
+  validTo?: string;
+  notes?: string;
+  source?: 'manual' | 'import' | 'erp';
+  externalRefs?: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* --- Audit Log Model --- */
+
+export type AuditEntityType =
+  | 'purchase_request'
+  | 'purchase_order'
+  | 'movement';
+
+export type AuditAction =
+  | 'created'
+  | 'updated'
+  | 'status_changed'
+  | 'converted';
+
+export interface AuditLog {
+  id: string;
+  companyId: string;
+  entityType: AuditEntityType;
+  entityId: string;
+  action: AuditAction;
+  fromValue?: string;
+  toValue?: string;
+  performedByUserId: string;
+  performedAt: string;
+  metadata?: Record<string, unknown>;
 }
