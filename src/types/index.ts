@@ -123,3 +123,16 @@ export interface MasterPrice {
   price: number;
   updatedAt: string;
 }
+
+/* --- Warehouse Master Types --- */
+
+export type WarehouseType = 'flowers' | 'hardgoods' | 'bouquets' | 'shipping' | 'cafeteria' | 'mixed';
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  state: string;
+  stateCode: string;
+  type: WarehouseType;
+  status: 'active' | 'inactive';
+}
