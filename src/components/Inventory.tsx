@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { InventoryItem, PriceItem, HistoryItem } from '../types';
 import { csv, parseCSV } from '../utils/helpers';
 import { getProductByCode } from '../utils/data';
@@ -75,6 +75,11 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
   const [blockOpacity, setBlockOpacity] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const invRef = useRef(inv);
+
+  useEffect(() => {
+    invRef.current = inv;
+  }, [inv]);
   
   // Sorting State
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | 'none' }>({ key: 'none', direction: 'none' });
@@ -268,6 +273,15 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
       setTimeout(() => setClearFeedback(false), 1500);
   };
 
+  const findInventoryItem = useCallback((code: string, warehouse?: string) => {
+    return invRef.current.find(i => String(i.id) === String(code) && (!warehouse || i.wh === warehouse));
+  }, []);
+
+  const isKnownProductCode = useCallback((code: string) => {
+    if (!code) return true;
+    return invRef.current.some(i => String(i.id) === String(code)) || !!getProductByCode(code);
+  }, []);
+
   const handleMoveRowChange = (id: number, field: string, value: string) => {
     setMoveRows(prev => prev.map(row => {
         if (row.id !== id) return row;
@@ -276,7 +290,7 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
         // Auto-complete Description
         if (field === 'code') {
              // Find description from any item with same ID (desc should be consistent)
-             let found = inv.find(i => String(i.id) === value);
+             let found = findInventoryItem(value);
              if (!found) {
                 // If not in inventory, check master data
                 const m = getProductByCode(value);
@@ -288,7 +302,7 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
     }));
   };
 
-const validateAndConfirm = () => {
+const validateAndConfirm = useCallback(() => {
   if (!moveWh) {
     alert("Seleccione una bodega.");
     return;
@@ -303,9 +317,7 @@ const validateAndConfirm = () => {
 
   if (moveType === "OUT") {
     for (let row of validRows) {
-      const stockItem = inv.find(
-        i => String(i.id) === String(row.code) && i.wh === moveWh
-      );
+      const stockItem = findInventoryItem(String(row.code), moveWh);
 
       if (!stockItem) {
         alert(`El producto ${row.code} no existe en esta bodega.`);
@@ -322,9 +334,9 @@ const validateAndConfirm = () => {
   }
 
   setConfirmOpen(true);
-};
+}, [findInventoryItem, moveRows, moveType, moveWh]);
 
-const executeMovement = () => {
+const executeMovement = useCallback(() => {
   const validRows = moveRows.filter(r => r.code && Number(r.q) > 0);
   const modifier = moveType === "IN" ? 1 : -1;
   const batchId = (moveType === "IN" ? "IN-" : "OUT-") + Date.now().toString();
@@ -386,7 +398,26 @@ const executeMovement = () => {
   setTimeout(() => {
     setSuccessAnim(false);
   }, 2500);
-};
+}, [moveRows, moveType, moveWh, setHist, setInv]);
+
+  const validateAndConfirmRef = useRef(validateAndConfirm);
+  const executeMovementRef = useRef(executeMovement);
+
+  useEffect(() => {
+    validateAndConfirmRef.current = validateAndConfirm;
+  }, [validateAndConfirm]);
+
+  useEffect(() => {
+    executeMovementRef.current = executeMovement;
+  }, [executeMovement]);
+
+  const handleConfirmMovementClick = useCallback(() => {
+    validateAndConfirmRef.current();
+  }, []);
+
+  const handleExecuteMovement = useCallback(() => {
+    executeMovementRef.current();
+  }, []);
   
   const handleImport = (txt: string) => {
     const data = parseCSV(txt);
@@ -995,9 +1026,9 @@ const executeMovement = () => {
                                   </thead>
                                   <tbody className="divide-y divide-bd/40 bg-sf">
                                       {moveRows.map((row, index) => {
-                                          const stockItem = inv.find(i => String(i.id) === String(row.code) && i.wh === moveWh);
+                                          const stockItem = findInventoryItem(String(row.code), moveWh);
                                           // Find the item in master list to get UoM even if not in stock
-                                          let masterItem = inv.find(i => String(i.id) === String(row.code));
+                                          let masterItem = findInventoryItem(String(row.code));
                                           if (!masterItem) {
                                             const m = getProductByCode(row.code);
                                             if (m) masterItem = { ...m, unimed: m.size } as any;
@@ -1007,7 +1038,7 @@ const executeMovement = () => {
                                           const qtyChange = Number(row.q) || 0;
                                           const finalStock = moveType === 'IN' ? currentStock + qtyChange : currentStock - qtyChange;
                                           // Check if code exists in either inventory OR master data
-                                          const productKnown = row.code ? (inv.some(i => String(i.id) === String(row.code)) || !!getProductByCode(row.code)) : true;
+                                          const productKnown = isKnownProductCode(String(row.code));
                                           const isCodeError = moveWh && !productKnown;
                                           const isStockError = moveWh && moveType === 'OUT' && (qtyChange > currentStock);
                                           const isFocused = index === focusIdx;
@@ -1130,14 +1161,14 @@ const executeMovement = () => {
                                   const activeCost = Number(currentRow?.cost) || 0;
                                   
                                   // Try to find master item data
-                                  let masterItem = inv.find(i => String(i.id) === String(activeCode));
+                                  let masterItem = findInventoryItem(String(activeCode));
                                   if (!masterItem) {
                                       const m = getProductByCode(activeCode);
                                       if (m) masterItem = { ...m, unimed: m.size } as any;
                                   }
 
                                   // Specific stock for selected warehouse
-                                  const stockItem = inv.find(i => String(i.id) === String(activeCode) && i.wh === moveWh);
+                                  const stockItem = findInventoryItem(String(activeCode), moveWh);
                                   const currentStock = stockItem ? stockItem.q : 0;
                                   
                                   // Calculate Impact
@@ -1252,7 +1283,7 @@ const executeMovement = () => {
                       <Btn variant="ghost" onClick={() => setMoveModalOpen(false)}>Cancelar</Btn>
                       <button 
                           disabled={!moveWh}
-                          onClick={validateAndConfirm}
+                          onClick={handleConfirmMovementClick}
                           className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none ${moveType === 'IN' ? 'bg-gn shadow-gn/20 hover:bg-gn/90' : 'bg-rd shadow-rd/20 hover:bg-rd/90'}`}
                       >
                           {moveType === 'IN' ? <ArrowDown size={18} strokeWidth={3} /> : <ArrowUp size={18} strokeWidth={3} />}
@@ -1268,7 +1299,7 @@ const executeMovement = () => {
           isOpen={confirmOpen} 
           onClose={() => setConfirmOpen(false)} 
           title="Confirmar Movimiento" 
-          onSave={executeMovement}
+          onSave={handleExecuteMovement}
           saveLabel="Confirmar"
       >
           <div className="space-y-4">
