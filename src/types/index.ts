@@ -229,4 +229,34 @@ export interface MovementCore {
   type: MovementType;
 }
 
-export interface Movement extends MovementIdentity, MovementCore, MovementRefs, MovementQuantities, MovementAudit {}
+export interface Movement extends MovementIdentity, MovementCore, MovementRefs, MovementQuantities, MovementAudit {
+  purchaseOrderLineId?: string;
+}
+
+/* --- Canonical Purchase Order Model --- */
+
+export type PurchaseOrderStatus = 'open' | 'partial' | 'closed' | 'cancelled';
+
+export type PurchaseOrderLineStatus = 'open' | 'partial' | 'fulfilled';
+
+export interface PurchaseOrder {
+  id: string;
+  companyId: string;
+  orderNumber: string;
+  supplierName: string;
+  orderDate: string;
+  expectedDeliveryDate?: string;
+  status: PurchaseOrderStatus;
+  createdAt: string;
+}
+
+export interface PurchaseOrderLine {
+  id: string;
+  purchaseOrderId: string;
+  sku: string;
+  nameSnapshot: string;
+  orderedQty: number;
+  unitPriceOrdered: number;
+  currency: string;
+  status: PurchaseOrderLineStatus;
+}
