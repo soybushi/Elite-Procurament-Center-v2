@@ -4,6 +4,7 @@
 
 export type Action =
   | 'PR_CREATE'
+  | 'PR_UPDATE'
   | 'PR_SUBMIT'
   | 'PR_APPROVE'
   | 'PR_REJECT'

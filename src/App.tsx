@@ -13,6 +13,8 @@ import AgM from './components/Agents';
 import SetM from './components/Settings';
 import { loadMasterData } from './utils/data';
 import { InventoryItem, PriceItem, TransferItem, HistoryItem, SupplierItem, OrderItem, PurchaseRequest, MasterProduct } from './types';
+import { usePurchaseRequestStore } from './ledger/purchaseRequestStore';
+import { updatePurchaseRequest } from './ledger/purchaseRequestService';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function App() {
@@ -74,23 +76,14 @@ export default function App() {
   const [sup, setSup] = useState<SupplierItem[]>([]);
   const [ord, setOrd] = useState<OrderItem[]>([]);
   const [tr, setTr] = useState<TransferItem[]>([]);
-  
-  const [reqs, setReqs] = useState<PurchaseRequest[]>(() => {
-    try {
-      const saved = localStorage.getItem('ef-reqs');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { console.error("Failed to load reqs", e); }
-    return [];
-  });
+
+  // Purchase Requests — owned by Zustand store (persisted under "ef-reqs")
+  const reqs = usePurchaseRequestStore((s) => s.purchaseRequests);
 
   // Persistence Effects
   useEffect(() => {
     localStorage.setItem('ef-whs', JSON.stringify(whs));
   }, [whs]);
-
-  useEffect(() => {
-    localStorage.setItem('ef-reqs', JSON.stringify(reqs));
-  }, [reqs]);
 
   useEffect(() => {
     localStorage.setItem('ef-inv', JSON.stringify(inv));
@@ -158,7 +151,7 @@ export default function App() {
   }, [reqs]);
 
   const handleExternalSubmit = (updatedReq: PurchaseRequest) => {
-     setReqs(prev => prev.map(r => r.id === updatedReq.id ? updatedReq : r));
+     updatePurchaseRequest(updatedReq);
      setExternalReq(updatedReq);
   };
 
@@ -188,7 +181,7 @@ export default function App() {
       case "inv": return <Inventory inv={inv} setInv={setInv} whs={whs} prc={prc} setHist={setHist} />;
       case "prc": return <Prices prc={prc} setPrc={setPrc} />;
       case "his": return <History hist={hist} />;
-      case "ord": return <PurchaseOrders ord={ord} setOrd={setOrd} reqs={reqs} setReqs={setReqs} inv={inv} whs={whs} hist={hist} sup={sup} prc={prc} masterProducts={masterProducts} />;
+      case "ord": return <PurchaseOrders ord={ord} setOrd={setOrd} inv={inv} whs={whs} hist={hist} sup={sup} prc={prc} masterProducts={masterProducts} />;
       case "trn": return <TrM tr={tr} setTr={setTr} whs={whs} />;
       case "sup": return <SupM sup={sup} setSup={setSup} />;
       case "agt": return <AgM />;

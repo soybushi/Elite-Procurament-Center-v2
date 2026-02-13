@@ -7,6 +7,7 @@ import { getProductByCode, getSuppliersByCode, getPriceBySupplier, PRODUCT_MASTE
 import { SI, FS, XB, Th, St, Btn, Modal, Inp, IB, EC } from './shared/UI';
 import { createPurchaseRequest, seedIdCounter } from '../ledger/purchaseRequestCreationService';
 import type { CreatePurchaseRequestInput } from '../ledger/purchaseRequestCreationService';
+import { usePurchaseRequestStore } from '../ledger/purchaseRequestStore';
 import { Plus, ShoppingCart, Calendar, CheckCircle2, Trash2, Search, Link as LinkIcon, Send, Save, Copy, Warehouse, Mail, ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Target, FileText, Lock, Filter, X, Check, Globe, FileSpreadsheet, PenTool, Upload, Package, Layers, ChevronDown, Sparkles, RefreshCw, Clock, Hash, Zap, ToggleLeft, ToggleRight, Box, History, Activity, List, Clipboard, ArrowRight, Grid, Tag, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 /* --- HELPER COMPONENTS --- */
@@ -656,8 +657,6 @@ const ItemCodeCell = ({
 interface Props {
     ord: OrderItem[];
     setOrd: React.Dispatch<React.SetStateAction<OrderItem[]>>;
-    reqs: PurchaseRequest[];
-    setReqs: React.Dispatch<React.SetStateAction<PurchaseRequest[]>>;
     inv: InventoryItem[];
     whs: string[];
     hist: HistoryItem[];
@@ -666,7 +665,7 @@ interface Props {
     masterProducts: MasterProduct[];
 }
 
-export default function PurchaseOrders({ ord, setOrd, reqs, setReqs, inv, whs, hist, sup, prc, masterProducts }: Props) {
+export default function PurchaseOrders({ ord, setOrd, inv, whs, hist, sup, prc, masterProducts }: Props) {
   const [tab, setTab] = useState<'requests' | 'orders'>('requests');
 
   return (
@@ -683,7 +682,7 @@ export default function PurchaseOrders({ ord, setOrd, reqs, setReqs, inv, whs, h
 
         <div className="flex-1 min-h-0">
             {tab === 'requests' ? (
-                <InternalRequestsManager reqs={reqs} setReqs={setReqs} inv={inv} whs={whs} hist={hist} sup={sup} prc={prc} masterProducts={masterProducts} />
+                <InternalRequestsManager inv={inv} whs={whs} hist={hist} sup={sup} prc={prc} masterProducts={masterProducts} />
             ) : (
                 <OrdersView ord={ord} setOrd={setOrd} />
             )}
@@ -954,7 +953,12 @@ export const ExternalOrderForm = ({ req, onSave, inv }: { req: PurchaseRequest, 
     );
 };
 
-const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, masterProducts }: any) => {
+const InternalRequestsManager = ({ inv, whs, hist, sup, prc, masterProducts }: any) => {
+    // PR state from Zustand store (single source of truth)
+    const reqs = usePurchaseRequestStore((s) => s.purchaseRequests);
+    const addRequest = usePurchaseRequestStore((s) => s.addRequest);
+    const updateRequestInStore = usePurchaseRequestStore((s) => s.updateRequest);
+
     const [modalOpen, setModalOpen] = useState(false);
     const [creationTab, setCreationTab] = useState<'portal' | 'manual' | 'import'>('portal');
     const [detailReq, setDetailReq] = useState<PurchaseRequest | null>(null);
@@ -990,7 +994,7 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
                 wh: newWh, items: [], origin: 'Portal', recipientEmail: newEmail, token,
             };
             const req = createPurchaseRequest(input);
-            setReqs([req, ...reqs]);
+            // Service already wrote to Zustand store; no manual setReqs needed.
             setModalOpen(false);
             setShareReq(req);
         } else if (creationTab === 'manual') {
@@ -998,7 +1002,6 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
                 wh: newWh, items: [], origin: 'Manual', token,
             };
             const req = createPurchaseRequest(input);
-            setReqs([req, ...reqs]);
             setModalOpen(false);
             setDetailReq(req);
         } else if (creationTab === 'import') {
@@ -1048,8 +1051,7 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
                     wh: newWh, items: Array.from(itemsMap.values()), origin: 'Excel', token,
                 };
                 const req = createPurchaseRequest(input);
-                
-                setReqs([req, ...reqs]);
+                // Service already wrote to Zustand store.
                 setModalOpen(false);
                 setDetailReq(req);
             };
@@ -1060,7 +1062,7 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
     };
 
     const handleUpdate = (updated: PurchaseRequest) => {
-        setReqs((prev: PurchaseRequest[]) => prev.map((r: PurchaseRequest) => r.id === updated.id ? updated : r));
+        updateRequestInStore(updated);
         setDetailReq(null);
     };
 

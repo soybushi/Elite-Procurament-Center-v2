@@ -148,3 +148,37 @@ export function transitionPurchaseRequestStatus(
 
   return updated;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Update (general field edit) — Phase 3                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Updates a PurchaseRequest's fields, persists the change, and records
+ * an audit-log entry.  The caller must pass the full updated object;
+ * immutable fields (id, companyId) should not be altered externally.
+ */
+export function updatePurchaseRequest(updated: PurchaseRequest): void {
+  const actor = getActor();
+  assertCan(actor, 'PR_UPDATE');
+
+  const current = purchaseRequestStore
+    .getState()
+    .purchaseRequests.find((r) => r.id === updated.id);
+
+  if (!current) {
+    throw new Error('PurchaseRequest not found.');
+  }
+
+  purchaseRequestStore.updateRequest(updated);
+
+  const log = createAuditLogBase(
+    updated.wh,
+    'purchase_request',
+    updated.id,
+    'updated',
+    actor.userId,
+  );
+
+  auditStore.addLog(log);
+}

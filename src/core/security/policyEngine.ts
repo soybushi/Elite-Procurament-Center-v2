@@ -24,6 +24,7 @@ export interface Actor {
 const POLICY: Record<Role, Partial<Record<Action, boolean>>> = {
   admin: {
     PR_CREATE: true,
+    PR_UPDATE: true,
     PR_SUBMIT: true,
     PR_APPROVE: true,
     PR_REJECT: true,
@@ -40,6 +41,7 @@ const POLICY: Record<Role, Partial<Record<Action, boolean>>> = {
 
   procurement: {
     PR_CREATE: true,
+    PR_UPDATE: true,
     PR_SUBMIT: true,
     PR_APPROVE: true,
     PR_REJECT: true,
@@ -56,6 +58,7 @@ const POLICY: Record<Role, Partial<Record<Action, boolean>>> = {
 
   manager: {
     PR_CREATE: true,
+    PR_UPDATE: true,
     PR_SUBMIT: true,
     PR_APPROVE: false,
     PR_REJECT: false,
@@ -72,6 +75,7 @@ const POLICY: Record<Role, Partial<Record<Action, boolean>>> = {
 
   supervisor_hardgoods: {
     PR_CREATE: true,
+    PR_UPDATE: true,
     PR_SUBMIT: true,
     PR_APPROVE: false,
     PR_REJECT: false,
@@ -88,6 +92,7 @@ const POLICY: Record<Role, Partial<Record<Action, boolean>>> = {
 
   viewer: {
     PR_CREATE: false,
+    PR_UPDATE: false,
     PR_SUBMIT: false,
     PR_APPROVE: false,
     PR_REJECT: false,

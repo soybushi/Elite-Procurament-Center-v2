@@ -1,27 +1,59 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { PurchaseRequest } from '../types';
+
+/* ------------------------------------------------------------------ */
+/*  Zustand-based reactive store for PurchaseRequests                 */
+/*  Persisted to localStorage under key "ef-reqs" (legacy compat).    */
+/* ------------------------------------------------------------------ */
 
 interface PurchaseRequestState {
   purchaseRequests: PurchaseRequest[];
+  addRequest: (request: PurchaseRequest) => void;
+  updateRequest: (updated: PurchaseRequest) => void;
+  reset: () => void;
 }
 
-const state: PurchaseRequestState = {
-  purchaseRequests: [],
-};
+export const usePurchaseRequestStore = create<PurchaseRequestState>()(
+  persist(
+    (set) => ({
+      purchaseRequests: [],
+      addRequest: (request) =>
+        set((state) => ({
+          purchaseRequests: [...state.purchaseRequests, request],
+        })),
+      updateRequest: (updated) =>
+        set((state) => ({
+          purchaseRequests: state.purchaseRequests.map((r) =>
+            r.id === updated.id ? updated : r
+          ),
+        })),
+      reset: () => set({ purchaseRequests: [] }),
+    }),
+    {
+      name: 'ef-reqs',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ purchaseRequests: state.purchaseRequests }),
+    },
+  ),
+);
+
+/* ------------------------------------------------------------------ */
+/*  Backward-compatible shim (consumed by existing services)          */
+/*  TODO: Remove once services migrate to usePurchaseRequestStore     */
+/* ------------------------------------------------------------------ */
 
 export const purchaseRequestStore = {
-  getState(): PurchaseRequestState {
-    return state;
+  getState() {
+    return usePurchaseRequestStore.getState();
   },
-  addRequest(request: PurchaseRequest): void {
-    state.purchaseRequests.push(request);
+  addRequest(request: PurchaseRequest) {
+    usePurchaseRequestStore.getState().addRequest(request);
   },
-  updateRequest(updated: PurchaseRequest): void {
-    const index = state.purchaseRequests.findIndex(r => r.id === updated.id);
-    if (index !== -1) {
-      state.purchaseRequests[index] = updated;
-    }
+  updateRequest(updated: PurchaseRequest) {
+    usePurchaseRequestStore.getState().updateRequest(updated);
   },
-  reset(): void {
-    state.purchaseRequests = [];
+  reset() {
+    usePurchaseRequestStore.getState().reset();
   },
 };
