@@ -14,6 +14,8 @@ import {
 } from './purchaseOrderService';
 import { assertCan } from '../core/security/policyEngine';
 import { getActor } from '../stores/authStore';
+import { getPurchaseRequestById } from './purchaseRequestQueryService';
+import { getPurchaseOrderByOrderNumber } from './purchaseOrderQueryService';
 
 /** Accepts both legacy and canonical request shapes. */
 type ConvertibleRequest = PurchaseRequest | TransitionedPurchaseRequest;
@@ -85,4 +87,59 @@ export function convertApprovedRequestToPurchaseOrder(
   );
 
   return { purchaseOrder, purchaseOrderLines };
+}
+
+/* ------------------------------------------------------------------ */
+/*  UI-facing conversion entry point (loads PR via query service)     */
+/* ------------------------------------------------------------------ */
+
+/** Error codes returned by convertApprovedRequestToPO. */
+export type ConversionErrorCode =
+  | 'PR_NOT_FOUND'
+  | 'PR_NOT_APPROVED'
+  | 'PR_ALREADY_CONVERTED';
+
+export class ConversionError extends Error {
+  constructor(public readonly code: ConversionErrorCode, message: string) {
+    super(message);
+    this.name = 'ConversionError';
+  }
+}
+
+/**
+ * High-level entry point for UI-driven PR → PO conversion.
+ *
+ * - Loads the PR via query service (read gateway).
+ * - Validates status === 'approved'.
+ * - Idempotent: if a PO already exists for this PR, returns it silently.
+ * - Delegates to `convertApprovedRequestToPurchaseOrder` for the actual work.
+ */
+export function convertApprovedRequestToPO(input: {
+  requestId: string;
+}): { purchaseOrderId: string } {
+  const pr = getPurchaseRequestById(input.requestId);
+  if (!pr) {
+    throw new ConversionError('PR_NOT_FOUND', `PurchaseRequest ${input.requestId} not found.`);
+  }
+
+  if ((pr.status as string) !== 'approved') {
+    // Idempotent: if already converted, look up the existing PO.
+    if ((pr.status as string) === 'converted') {
+      const existingPO = getPurchaseOrderByOrderNumber(pr.id);
+      if (existingPO) {
+        return { purchaseOrderId: existingPO.id };
+      }
+    }
+    throw new ConversionError('PR_NOT_APPROVED', `PurchaseRequest ${input.requestId} status is '${pr.status}', expected 'approved'.`);
+  }
+
+  // Idempotent: if PO already exists for this PR (guard against race / event replay).
+  const existingPO = getPurchaseOrderByOrderNumber(pr.id);
+  if (existingPO) {
+    return { purchaseOrderId: existingPO.id };
+  }
+
+  const actor = getActor();
+  const { purchaseOrder } = convertApprovedRequestToPurchaseOrder(pr, pr.items, actor.userId);
+  return { purchaseOrderId: purchaseOrder.id };
 }

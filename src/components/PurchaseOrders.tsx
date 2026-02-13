@@ -7,6 +7,7 @@ import { getProductByCode, getSuppliersByCode, getPriceBySupplier, PRODUCT_MASTE
 import { SI, FS, XB, Th, St, Btn, Modal, Inp, IB, EC } from './shared/UI';
 import { createPurchaseRequest, seedIdCounter } from '../ledger/purchaseRequestCreationService';
 import type { CreatePurchaseRequestInput } from '../ledger/purchaseRequestCreationService';
+import { convertApprovedRequestToPO, ConversionError } from '../ledger/purchaseRequestConversionService';
 import { usePurchaseRequestStore } from '../ledger/purchaseRequestStore';
 import { Plus, ShoppingCart, Calendar, CheckCircle2, Trash2, Search, Link as LinkIcon, Send, Save, Copy, Warehouse, Mail, ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Target, FileText, Lock, Filter, X, Check, Globe, FileSpreadsheet, PenTool, Upload, Package, Layers, ChevronDown, Sparkles, RefreshCw, Clock, Hash, Zap, ToggleLeft, ToggleRight, Box, History, Activity, List, Clipboard, ArrowRight, Grid, Tag, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
@@ -1279,6 +1280,11 @@ const InternalRequestDetails = ({ req, onSave, onClose, hist, sup, prc, inv, mas
     // Delete Confirmation State
     const [deleteCandidate, setDeleteCandidate] = useState<{itemId: string, splitId: string} | null>(null);
 
+    // Convert to PO State
+    const [showConvertConfirm, setShowConvertConfirm] = useState(false);
+    const [convertLoading, setConvertLoading] = useState(false);
+    const [convertResult, setConvertResult] = useState<{ success: boolean; message: string; purchaseOrderId?: string } | null>(null);
+
     // Sort State
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | 'none' }>({ key: 'none', direction: 'none' });
 
@@ -1881,7 +1887,10 @@ const InternalRequestDetails = ({ req, onSave, onClose, hist, sup, prc, inv, mas
                         </Btn>
                     )}
                     <Btn variant="secondary" icon={Save} onClick={handleSave}>Guardar</Btn>
-                    {req.status !== 'approved' && (
+                    {req.status === 'approved' && (
+                        <Btn variant="primary" icon={ArrowRight} onClick={() => setShowConvertConfirm(true)}>Convertir a PO</Btn>
+                    )}
+                    {req.status !== 'approved' && req.status !== 'converted' && (
                         <Btn variant="primary" icon={CheckCircle2} onClick={handleApprove}>Aprobar</Btn>
                     )}
                 </div>
@@ -2191,6 +2200,85 @@ const InternalRequestDetails = ({ req, onSave, onClose, hist, sup, prc, inv, mas
                 saveLabel="Eliminar"
             >
                 <p>¿Está seguro de que desea eliminar esta línea? Esta acción no se puede deshacer.</p>
+            </Modal>
+
+            {/* Convert to PO Confirmation Modal */}
+            <Modal
+                isOpen={showConvertConfirm}
+                onClose={() => { setShowConvertConfirm(false); setConvertResult(null); }}
+                title="Convertir a Orden de Compra"
+                onSave={() => {
+                    if (convertResult?.success) {
+                        setShowConvertConfirm(false);
+                        setConvertResult(null);
+                        onClose();
+                        return;
+                    }
+                    setConvertLoading(true);
+                    setConvertResult(null);
+                    try {
+                        const result = convertApprovedRequestToPO({ requestId: req.id });
+                        setConvertResult({ success: true, message: `Orden de Compra creada: ${result.purchaseOrderId}`, purchaseOrderId: result.purchaseOrderId });
+                    } catch (err: unknown) {
+                        if (err instanceof ConversionError) {
+                            setConvertResult({ success: false, message: err.message });
+                        } else {
+                            setConvertResult({ success: false, message: (err as Error).message || 'Error desconocido.' });
+                        }
+                    } finally {
+                        setConvertLoading(false);
+                    }
+                }}
+                saveLabel={convertResult?.success ? 'Cerrar' : convertLoading ? 'Procesando...' : 'Confirmar Conversión'}
+            >
+                {!convertResult && (
+                    <div className="space-y-4">
+                        <div className="bg-am/5 border border-am/10 p-5 rounded-2xl flex gap-4 items-start">
+                            <AlertCircle className="text-am shrink-0 mt-0.5" size={20} />
+                            <div>
+                                <p className="text-sm font-bold text-tx mb-1">¿Convertir esta solicitud en una Orden de Compra?</p>
+                                <p className="text-xs text-t2 leading-relaxed">
+                                    Esta acción creará una Orden de Compra con {items.length} línea(s) y marcará la solicitud como <strong>convertida</strong>. Esta operación no se puede revertir.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="bg-s2/50 rounded-2xl p-4 border border-bd/50 space-y-2">
+                            <div className="flex justify-between text-xs">
+                                <span className="text-t3 font-bold uppercase">Solicitud</span>
+                                <span className="text-tx font-mono">{req.id}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-t3 font-bold uppercase">Bodega</span>
+                                <span className="text-tx">{req.wh}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-t3 font-bold uppercase">Líneas</span>
+                                <span className="text-tx">{items.length}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-t3 font-bold uppercase">Valor Total</span>
+                                <span className="text-tx font-bold">${(calculateTotalValue() || 0).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {convertResult && (
+                    <div className={`p-5 rounded-2xl flex gap-4 items-start ${
+                        convertResult.success ? 'bg-gn/5 border border-gn/10' : 'bg-rd/5 border border-rd/10'
+                    }`}>
+                        {convertResult.success ? (
+                            <CheckCircle2 className="text-gn shrink-0 mt-0.5" size={20} />
+                        ) : (
+                            <AlertCircle className="text-rd shrink-0 mt-0.5" size={20} />
+                        )}
+                        <div>
+                            <p className={`text-sm font-bold ${convertResult.success ? 'text-gn' : 'text-rd'} mb-1`}>
+                                {convertResult.success ? 'Conversión Exitosa' : 'Error en Conversión'}
+                            </p>
+                            <p className="text-xs text-t2">{convertResult.message}</p>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div>
     );
