@@ -9,6 +9,7 @@ import type { TransitionedPurchaseRequest } from './purchaseRequestService';
 import { transitionPurchaseRequestStatus } from './purchaseRequestService';
 import { createPurchaseOrderBase, createPurchaseOrderLineBase } from '../config/purchaseOrderDefaults';
 import { purchaseOrderStore } from './purchaseOrderStore';
+import { createPurchaseOrder } from './purchaseOrderService';
 import { assertCan } from '../core/security/policyEngine';
 import { getActor } from '../stores/authStore';
 
@@ -73,9 +74,8 @@ export function convertApprovedRequestToPurchaseOrder(
     ),
   );
 
-  // Persist order and lines in the PO store.
-  purchaseOrderStore.addOrder(purchaseOrder);
-  purchaseOrderStore.addLines(purchaseOrderLines);
+  // Persist order and lines via the official PO service.
+  createPurchaseOrder(purchaseOrder, purchaseOrderLines);
 
   // Transition request to 'converted' via the official state machine.
   const updatedRequest = transitionPurchaseRequestStatus(
