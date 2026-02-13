@@ -31,6 +31,9 @@ export function createPurchaseRequest(
   const actor = getActor();
   assertCan(actor, 'PR_CREATE');
 
+  // Stamp companyId from the authenticated actor.
+  (request as any).companyId = actor.companyId;
+
   if (request.status !== 'draft') {
     throw new Error('New PurchaseRequest must start in draft status.');
   }

@@ -55,7 +55,7 @@ export function convertApprovedRequestToPurchaseOrder(
 
   // Create canonical PurchaseOrder.
   const purchaseOrder = createPurchaseOrderBase(
-    request.wh,        // companyId placeholder (warehouse context)
+    actor.companyId,    // companyId from authenticated actor
     request.id,         // orderNumber = request id
     '',                 // supplierName — placeholder
     now,                // orderDate
