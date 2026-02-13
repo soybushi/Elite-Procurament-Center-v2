@@ -8,7 +8,9 @@ import { SI, FS, XB, Th, St, Btn, Modal, Inp, IB, EC } from './shared/UI';
 import { createPurchaseRequest, seedIdCounter } from '../ledger/purchaseRequestCreationService';
 import type { CreatePurchaseRequestInput } from '../ledger/purchaseRequestCreationService';
 import { convertApprovedRequestToPO, ConversionError } from '../ledger/purchaseRequestConversionService';
+import { updatePurchaseRequest } from '../ledger/purchaseRequestService';
 import { usePurchaseRequestStore } from '../ledger/purchaseRequestStore';
+import { getActor } from '../stores/authStore';
 import { Plus, ShoppingCart, Calendar, CheckCircle2, Trash2, Search, Link as LinkIcon, Send, Save, Copy, Warehouse, Mail, ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Target, FileText, Lock, Filter, X, Check, Globe, FileSpreadsheet, PenTool, Upload, Package, Layers, ChevronDown, Sparkles, RefreshCw, Clock, Hash, Zap, ToggleLeft, ToggleRight, Box, History, Activity, List, Clipboard, ArrowRight, Grid, Tag, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 /* --- HELPER COMPONENTS --- */
@@ -957,8 +959,6 @@ export const ExternalOrderForm = ({ req, onSave, inv }: { req: PurchaseRequest, 
 const InternalRequestsManager = ({ inv, whs, hist, sup, prc, masterProducts }: any) => {
     // PR state from Zustand store (single source of truth)
     const reqs = usePurchaseRequestStore((s) => s.purchaseRequests);
-    const addRequest = usePurchaseRequestStore((s) => s.addRequest);
-    const updateRequestInStore = usePurchaseRequestStore((s) => s.updateRequest);
 
     const [modalOpen, setModalOpen] = useState(false);
     const [creationTab, setCreationTab] = useState<'portal' | 'manual' | 'import'>('portal');
@@ -1063,8 +1063,15 @@ const InternalRequestsManager = ({ inv, whs, hist, sup, prc, masterProducts }: a
     };
 
     const handleUpdate = (updated: PurchaseRequest) => {
-        updateRequestInStore(updated);
-        setDetailReq(null);
+        try {
+            // Actor is required for policy enforcement in service layer.
+            getActor();
+            updatePurchaseRequest(updated);
+            setDetailReq(null);
+        } catch (error) {
+            console.error('No se pudo actualizar la solicitud de compra.', error);
+            window.alert('No se pudo actualizar la solicitud. Verifique permisos e intente nuevamente.');
+        }
     };
 
     return (
