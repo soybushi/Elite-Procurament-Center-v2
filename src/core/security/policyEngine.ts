@@ -5,6 +5,7 @@
 
 import type { Action } from './actions';
 import type { Role } from './roles';
+import type { CompanyId } from '../tenancy/company';
 
 /* ------------------------------------------------------------------ */
 /*  Actor                                                             */
@@ -13,6 +14,7 @@ import type { Role } from './roles';
 export interface Actor {
   userId: string;
   role: Role;
+  companyId: CompanyId;
 }
 
 /* ------------------------------------------------------------------ */

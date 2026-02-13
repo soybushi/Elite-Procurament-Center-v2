@@ -7,7 +7,7 @@ import type { Role } from './core/security/roles';
 
 /* ---- DEV-only bootstrap actor ---- */
 if (import.meta.env.DEV) {
-  setActor({ userId: 'dev-user', role: 'admin' as Role });
+  setActor({ userId: 'dev-user', role: 'admin' as Role, companyId: 'elite-flower' });
 }
 
 const rootElement = document.getElementById('root');

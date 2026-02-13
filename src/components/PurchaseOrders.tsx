@@ -984,14 +984,14 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
 
         if (creationTab === 'portal') {
             const req: PurchaseRequest = {
-                id, wh: newWh, status: 'draft', createdAt: now, recipientEmail: newEmail, token, items: [], origin: 'Portal'
+                id, wh: newWh, companyId: 'elite-flower', status: 'draft', createdAt: now, recipientEmail: newEmail, token, items: [], origin: 'Portal'
             };
             setReqs([req, ...reqs]);
             setModalOpen(false);
             setShareReq(req);
         } else if (creationTab === 'manual') {
             const req: PurchaseRequest = {
-                id, wh: newWh, status: 'draft', createdAt: now, token, items: [], origin: 'Manual'
+                id, wh: newWh, companyId: 'elite-flower', status: 'draft', createdAt: now, token, items: [], origin: 'Manual'
             };
             setReqs([req, ...reqs]);
             setModalOpen(false);
@@ -1041,6 +1041,7 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
                 const req: PurchaseRequest = {
                     id, 
                     wh: newWh,
+                    companyId: 'elite-flower',
                     status: 'draft', 
                     createdAt: now, 
                     token, 

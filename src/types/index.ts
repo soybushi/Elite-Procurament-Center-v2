@@ -94,6 +94,7 @@ export interface RequestItem {
 
 export interface PurchaseRequest {
   id: string;
+  companyId: string;
   wh: string;
   status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'converted';
   createdAt: string;

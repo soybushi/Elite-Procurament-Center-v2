@@ -17,7 +17,6 @@ import { auditStore } from './auditStore';
 /* ------------------------------------------------------------------ */
 
 interface LedgerMoveParams {
-  companyId: string;
   sku: string;
   warehouseId: string;
   qty: number;
@@ -40,7 +39,7 @@ export function moveIn(params: LedgerMoveParams): Movement {
   assertCan(actor, 'LEDGER_MOVE_IN');
 
   const movement = createMovementBase(
-    params.companyId,
+    actor.companyId,
     params.sku,
     params.warehouseId,
     'receipt',
@@ -60,7 +59,7 @@ export function moveIn(params: LedgerMoveParams): Movement {
 
   auditStore.addLog(
     createAuditLogBase(
-      params.companyId,
+      actor.companyId,
       'movement',
       movement.movementId,
       'created',
@@ -87,7 +86,7 @@ export function moveOut(params: LedgerMoveParams): Movement {
   assertCan(actor, 'LEDGER_MOVE_OUT');
 
   const movement = createMovementBase(
-    params.companyId,
+    actor.companyId,
     params.sku,
     params.warehouseId,
     'issue',
@@ -107,7 +106,7 @@ export function moveOut(params: LedgerMoveParams): Movement {
 
   auditStore.addLog(
     createAuditLogBase(
-      params.companyId,
+      actor.companyId,
       'movement',
       movement.movementId,
       'created',
@@ -134,7 +133,7 @@ export function adjust(params: LedgerMoveParams): Movement {
   assertCan(actor, 'LEDGER_ADJUST');
 
   const movement = createMovementBase(
-    params.companyId,
+    actor.companyId,
     params.sku,
     params.warehouseId,
     'adjustment',
@@ -154,7 +153,7 @@ export function adjust(params: LedgerMoveParams): Movement {
 
   auditStore.addLog(
     createAuditLogBase(
-      params.companyId,
+      actor.companyId,
       'movement',
       movement.movementId,
       'created',
