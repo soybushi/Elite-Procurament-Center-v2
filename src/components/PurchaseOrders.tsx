@@ -846,7 +846,7 @@ export const ExternalOrderForm = ({ req, onSave, inv }: { req: PurchaseRequest, 
             alert("Agregue al menos un producto.");
             return;
         }
-        onSave({ ...req, items, status: 'Enviada por bodega' });
+        onSave({ ...req, items, status: 'submitted' });
         alert("Solicitud enviada correctamente.");
     };
 
@@ -984,14 +984,14 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
 
         if (creationTab === 'portal') {
             const req: PurchaseRequest = {
-                id, wh: newWh, status: 'Borrador', createdAt: now, recipientEmail: newEmail, token, items: [], origin: 'Portal'
+                id, wh: newWh, status: 'draft', createdAt: now, recipientEmail: newEmail, token, items: [], origin: 'Portal'
             };
             setReqs([req, ...reqs]);
             setModalOpen(false);
             setShareReq(req);
         } else if (creationTab === 'manual') {
             const req: PurchaseRequest = {
-                id, wh: newWh, status: 'Borrador', createdAt: now, token, items: [], origin: 'Manual'
+                id, wh: newWh, status: 'draft', createdAt: now, token, items: [], origin: 'Manual'
             };
             setReqs([req, ...reqs]);
             setModalOpen(false);
@@ -1041,7 +1041,7 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
                 const req: PurchaseRequest = {
                     id, 
                     wh: newWh,
-                    status: 'Borrador', 
+                    status: 'draft', 
                     createdAt: now, 
                     token, 
                     items: Array.from(itemsMap.values()), 
@@ -1088,9 +1088,9 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
                                 </div>
                             </div>
                             <span className={`text-[10px] font-black px-3 py-1 rounded-full border uppercase tracking-wider ${
-                                r.status === 'Borrador' ? 'bg-am/10 text-am border-am/20' : 
-                                r.status.includes('Enviada') ? 'bg-cy/10 text-cy border-cy/20' : 
-                                r.status === 'Aprobada' ? 'bg-gn/10 text-gn border-gn/20' :
+                                r.status === 'draft' ? 'bg-am/10 text-am border-am/20' : 
+                                r.status === 'submitted' ? 'bg-cy/10 text-cy border-cy/20' : 
+                                r.status === 'approved' ? 'bg-gn/10 text-gn border-gn/20' :
                                 'bg-bl/10 text-bl border-bl/20'
                             }`}>
                                 {r.status}
@@ -1137,7 +1137,7 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
                             {r.origin === 'Portal' && (
                                 <button 
                                     onClick={() => setShareReq(r)}
-                                    className={`px-4 py-3 rounded-xl border-2 transition-all ${r.status === 'Borrador' ? 'bg-bl text-white border-bl shadow-md shadow-bl/20' : 'bg-sf border-bd text-bl hover:bg-bl hover:text-white hover:border-bl'}`}
+                                    className={`px-4 py-3 rounded-xl border-2 transition-all ${r.status === 'draft' ? 'bg-bl text-white border-bl shadow-md shadow-bl/20' : 'bg-sf border-bd text-bl hover:bg-bl hover:text-white hover:border-bl'}`}
                                     title="Enviar Enlace a Bodega"
                                 >
                                     <Send size={18} />
@@ -1228,7 +1228,7 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
 const InternalRequestDetails = ({ req, onSave, onClose, hist, sup, prc, inv, masterProducts }: any) => {
     const [items, setItems] = useState<RequestItem[]>(req.items);
     const [showFilters, setShowFilters] = useState(false);
-    const isEditable = req.status === 'Borrador';
+    const isEditable = req.status === 'draft';
     
     // Add Item State
     const [addCode, setAddCode] = useState("");
@@ -1760,7 +1760,7 @@ const InternalRequestDetails = ({ req, onSave, onClose, hist, sup, prc, inv, mas
             ...req, 
             items, 
             totalValue: calculateTotalValue(),
-            status: missingPO ? 'Parcial' : 'Aprobada'
+            status: 'approved'
         });
         onClose();
     };
@@ -1878,7 +1878,7 @@ const InternalRequestDetails = ({ req, onSave, onClose, hist, sup, prc, inv, mas
                         </Btn>
                     )}
                     <Btn variant="secondary" icon={Save} onClick={handleSave}>Guardar</Btn>
-                    {req.status !== 'Aprobada' && (
+                    {req.status !== 'approved' && (
                         <Btn variant="primary" icon={CheckCircle2} onClick={handleApprove}>Aprobar</Btn>
                     )}
                 </div>

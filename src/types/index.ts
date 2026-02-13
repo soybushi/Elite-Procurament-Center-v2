@@ -95,7 +95,7 @@ export interface RequestItem {
 export interface PurchaseRequest {
   id: string;
   wh: string;
-  status: 'Borrador' | 'Enviada' | 'Enviada por bodega' | 'En Revisión' | 'Aprobada' | 'Consolidada' | 'Parcial';
+  status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'converted';
   createdAt: string;
   items: RequestItem[];
   token?: string; // Secure link token
