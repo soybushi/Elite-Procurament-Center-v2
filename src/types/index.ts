@@ -98,6 +98,7 @@ export interface PurchaseRequest {
   wh: string;
   status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'converted';
   createdAt: string;
+  createdBy?: string; // userId from actor (stamped by service)
   items: RequestItem[];
   token?: string; // Secure link token
   recipientEmail?: string; // Warehouse contact email

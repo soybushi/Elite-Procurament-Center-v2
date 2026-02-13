@@ -5,6 +5,8 @@ import { OrderItem, PurchaseRequest, RequestItem, InventoryItem, HistoryItem, Su
 import { csv, parseCSV } from '../utils/helpers';
 import { getProductByCode, getSuppliersByCode, getPriceBySupplier, PRODUCT_MASTER } from '../utils/data';
 import { SI, FS, XB, Th, St, Btn, Modal, Inp, IB, EC } from './shared/UI';
+import { createPurchaseRequest, seedIdCounter } from '../ledger/purchaseRequestCreationService';
+import type { CreatePurchaseRequestInput } from '../ledger/purchaseRequestCreationService';
 import { Plus, ShoppingCart, Calendar, CheckCircle2, Trash2, Search, Link as LinkIcon, Send, Save, Copy, Warehouse, Mail, ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Target, FileText, Lock, Filter, X, Check, Globe, FileSpreadsheet, PenTool, Upload, Package, Layers, ChevronDown, Sparkles, RefreshCw, Clock, Hash, Zap, ToggleLeft, ToggleRight, Box, History, Activity, List, Clipboard, ArrowRight, Grid, Tag, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 /* --- HELPER COMPONENTS --- */
@@ -969,30 +971,33 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [importFile, setImportFile] = useState<File | null>(null);
 
-    const generateId = () => "REQ-" + new Date().getFullYear() + "-" + String(reqs.length + 1).padStart(3, '0');
     const generateToken = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+    // Seed the service ID counter so new IDs continue the sequence.
+    useEffect(() => { seedIdCounter(reqs.length); }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
     // Filter Logic
     const filteredReqs = useMemo(() => {
         return reqs.filter((r: PurchaseRequest) => !whFilter || r.wh.toLowerCase() === whFilter.toLowerCase());
     }, [reqs, whFilter]);
 
+    /** Delegate creation to purchaseRequestCreationService. */
     const handleCreate = () => {
-        const id = generateId();
         const token = generateToken();
-        const now = new Date().toISOString().split('T')[0];
 
         if (creationTab === 'portal') {
-            const req: PurchaseRequest = {
-                id, wh: newWh, companyId: 'elite-flower', status: 'draft', createdAt: now, recipientEmail: newEmail, token, items: [], origin: 'Portal'
+            const input: CreatePurchaseRequestInput = {
+                wh: newWh, items: [], origin: 'Portal', recipientEmail: newEmail, token,
             };
+            const req = createPurchaseRequest(input);
             setReqs([req, ...reqs]);
             setModalOpen(false);
             setShareReq(req);
         } else if (creationTab === 'manual') {
-            const req: PurchaseRequest = {
-                id, wh: newWh, companyId: 'elite-flower', status: 'draft', createdAt: now, token, items: [], origin: 'Manual'
+            const input: CreatePurchaseRequestInput = {
+                wh: newWh, items: [], origin: 'Manual', token,
             };
+            const req = createPurchaseRequest(input);
             setReqs([req, ...reqs]);
             setModalOpen(false);
             setDetailReq(req);
@@ -1001,6 +1006,7 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
             const reader = new FileReader();
             reader.onload = (e) => {
                 const txt = e.target?.result as string;
+                const now = new Date().toISOString().split('T')[0];
                 const rows = parseCSV(txt);
                 const itemsMap = new Map<string, RequestItem>();
                 
@@ -1038,16 +1044,10 @@ const InternalRequestsManager = ({ reqs, setReqs, inv, whs, hist, sup, prc, mast
                     }
                 });
 
-                const req: PurchaseRequest = {
-                    id, 
-                    wh: newWh,
-                    companyId: 'elite-flower',
-                    status: 'draft', 
-                    createdAt: now, 
-                    token, 
-                    items: Array.from(itemsMap.values()), 
-                    origin: 'Excel'
+                const input: CreatePurchaseRequestInput = {
+                    wh: newWh, items: Array.from(itemsMap.values()), origin: 'Excel', token,
                 };
+                const req = createPurchaseRequest(input);
                 
                 setReqs([req, ...reqs]);
                 setModalOpen(false);
