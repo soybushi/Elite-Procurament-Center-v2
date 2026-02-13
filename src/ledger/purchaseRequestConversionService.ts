@@ -79,7 +79,8 @@ export function convertApprovedRequestToPurchaseOrder(
 
   // Transition request to 'converted' via the official state machine.
   const updatedRequest = transitionPurchaseRequestStatus(
-    request,
+    request as unknown as PurchaseRequest,
+    'approved',
     'converted',
     performedByUserId,
   );
