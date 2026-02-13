@@ -1,16 +1,43 @@
 /* ------------------------------------------------------------------ */
 /*  Ledger Service — Policy-enforced entry points for ledger mutations */
-/*  NOT connected to UI or existing modules.                          */
-/*  Does NOT modify ledgerStore directly — delegates to it.           */
+/*  Centralises ALL write operations to ledgerStore.                  */
 /* ------------------------------------------------------------------ */
 
 import type { Movement } from '../types';
+import type { LedgerState } from './types';
 import { assertCan } from '../core/security/policyEngine';
 import { getActor } from '../stores/authStore';
 import { createMovementBase } from '../config/movementDefaults';
 import { ledgerStore } from './ledgerStore';
 import { createAuditLogBase } from '../config/auditDefaults';
 import { auditStore } from './auditStore';
+
+/* ------------------------------------------------------------------ */
+/*  Low-level write façade — all writes to ledgerStore MUST go here   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Append movements to the ledger store.
+ * Every caller that needs to persist movements MUST use this function
+ * instead of calling ledgerStore.addMovements directly.
+ */
+export function addMovements(movs: Movement[]): void {
+  ledgerStore.addMovements(movs);
+}
+
+/**
+ * Reset the ledger store for a given company.
+ */
+export function resetLedger(companyId: string): void {
+  ledgerStore.reset(companyId);
+}
+
+/**
+ * Replace the entire ledger state (for hydration or batch registration).
+ */
+export function setLedgerState(next: LedgerState): void {
+  ledgerStore.setState(next);
+}
 
 /* ------------------------------------------------------------------ */
 /*  Common params                                                     */
@@ -55,7 +82,7 @@ export function moveIn(params: LedgerMoveParams): Movement {
   }
   movement.createdBy = actor.userId;
 
-  ledgerStore.addMovements([movement]);
+  addMovements([movement]);
 
   auditStore.addLog(
     createAuditLogBase(
@@ -102,7 +129,7 @@ export function moveOut(params: LedgerMoveParams): Movement {
   }
   movement.createdBy = actor.userId;
 
-  ledgerStore.addMovements([movement]);
+  addMovements([movement]);
 
   auditStore.addLog(
     createAuditLogBase(
@@ -149,7 +176,7 @@ export function adjust(params: LedgerMoveParams): Movement {
   }
   movement.createdBy = actor.userId;
 
-  ledgerStore.addMovements([movement]);
+  addMovements([movement]);
 
   auditStore.addLog(
     createAuditLogBase(

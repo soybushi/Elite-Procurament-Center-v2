@@ -4,7 +4,7 @@
 /* ------------------------------------------------------------------ */
 
 import type { PurchaseOrderLine, PurchaseOrderLineStatus } from '../types';
-import { ledgerStore } from './ledgerStore';
+import { getAllMovements } from './ledgerQueryService';
 
 /**
  * Computes the net received quantity for a specific PurchaseOrderLine
@@ -16,7 +16,7 @@ import { ledgerStore } from './ledgerStore';
  *  transfer   → ignored (does not affect reception)
  */
 export function getReceivedQtyForLine(purchaseOrderLineId: string): number {
-  const { movements } = ledgerStore.getState();
+  const movements = getAllMovements();
   let total = 0;
 
   for (const m of movements) {

@@ -8,8 +8,10 @@ import type { Action } from '../core/security/actions';
 import { createAuditLogBase } from '../config/auditDefaults';
 import { auditStore } from './auditStore';
 import { purchaseRequestStore } from './purchaseRequestStore';
+import { getPurchaseRequestById } from './purchaseRequestQueryService';
 import { assertCan } from '../core/security/policyEngine';
 import { getActor } from '../stores/authStore';
+import { publish } from '../core/domainEventBus';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -137,13 +139,25 @@ export function transitionPurchaseRequestStatus(
   auditStore.addLog(log);
 
   // Persist updated request in the store.
-  const exists = purchaseRequestStore.getState().purchaseRequests.find(
-    (r) => r.id === request.id,
-  );
+  const exists = getPurchaseRequestById(request.id);
   if (exists) {
     purchaseRequestStore.updateRequest(updated as unknown as PurchaseRequest);
   } else {
     purchaseRequestStore.addRequest(updated as unknown as PurchaseRequest);
+  }
+
+  // Emit domain event when PR reaches 'approved'.
+  if (newStatus === 'approved') {
+    const actor = getActor();
+    publish({
+      type: 'PR_APPROVED',
+      payload: {
+        purchaseRequestId: updated.id,
+        companyId: actor.companyId,
+        performedByUserId: actor.userId,
+        occurredAt: now,
+      },
+    });
   }
 
   return updated;

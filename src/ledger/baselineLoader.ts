@@ -6,7 +6,7 @@
 import type { Movement } from '../types';
 import { createMovementBase } from '../config/movementDefaults';
 import { DEFAULT_SYSTEM_CONFIG } from '../config/systemConfig';
-import { ledgerStore } from './ledgerStore';
+import { addMovements } from './ledgerService';
 
 /**
  * Applies an inventory baseline (e.g. a migration snapshot) to the ledger
@@ -53,7 +53,7 @@ export function applyInventoryBaseline(
     return mov;
   });
 
-  ledgerStore.addMovements(movements);
+  addMovements(movements);
 
   DEFAULT_SYSTEM_CONFIG.baselineLoaded = true;
 }

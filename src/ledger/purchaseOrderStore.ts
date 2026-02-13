@@ -59,6 +59,12 @@ export const usePurchaseOrderStore = create<PurchaseOrderState>()(
 /*  TODO: Remove once services migrate to usePurchaseOrderStore       */
 /* ------------------------------------------------------------------ */
 
+/**
+ * ⚠ INTERNAL DOMAIN STORE
+ * DO NOT IMPORT THIS DIRECTLY FROM UI LAYER.
+ * All mutations must go through the service layer.
+ * UI must ONLY use: usePurchaseOrderStore
+ */
 export const purchaseOrderStore = {
   getState: () => usePurchaseOrderStore.getState(),
   addOrder: (order: PurchaseOrder) =>

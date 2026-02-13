@@ -4,7 +4,7 @@
 /* ------------------------------------------------------------------ */
 
 import type { Movement } from '../types';
-import { ledgerStore } from './ledgerStore';
+import { getAllMovements } from './ledgerQueryService';
 
 /* ------------------------------------------------------------------ */
 /*  getMovementsBySku                                                 */
@@ -18,7 +18,7 @@ export function getMovementsBySku(
   sku: string,
   warehouseId?: string,
 ): Movement[] {
-  const { movements } = ledgerStore.getState();
+  const movements = getAllMovements();
   return movements.filter((m) => {
     if (m.sku !== sku) return false;
     if (warehouseId === undefined) return true;
@@ -44,7 +44,7 @@ export function getBalanceBySku(
   sku: string,
   warehouseId: string,
 ): { sku: string; warehouseId: string; balance: number } {
-  const { movements } = ledgerStore.getState();
+  const movements = getAllMovements();
   let balance = 0;
 
   for (const m of movements) {
@@ -87,7 +87,7 @@ export interface WarehouseSummary {
  * Aggregates movement counts for a warehouse across all SKUs.
  */
 export function getWarehouseSummary(warehouseId: string): WarehouseSummary {
-  const { movements } = ledgerStore.getState();
+  const movements = getAllMovements();
 
   let totalMovements = 0;
   let totalReceipts = 0;
@@ -150,7 +150,7 @@ export function getSkuKardex(
   sku: string,
   warehouseId: string,
 ): KardexEntry[] {
-  const { movements } = ledgerStore.getState();
+  const movements = getAllMovements();
 
   // Collect relevant movements and compute their signed delta.
   const relevant: { m: Movement; delta: number }[] = [];

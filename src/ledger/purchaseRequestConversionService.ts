@@ -8,8 +8,10 @@ import type { PurchaseRequest, RequestItem, PurchaseOrder, PurchaseOrderLine } f
 import type { TransitionedPurchaseRequest } from './purchaseRequestService';
 import { transitionPurchaseRequestStatus } from './purchaseRequestService';
 import { createPurchaseOrderBase, createPurchaseOrderLineBase } from '../config/purchaseOrderDefaults';
-import { purchaseOrderStore } from './purchaseOrderStore';
-import { createPurchaseOrder } from './purchaseOrderService';
+import {
+  createPurchaseOrder,
+  existsPurchaseOrderByNumber,
+} from './purchaseOrderService';
 import { assertCan } from '../core/security/policyEngine';
 import { getActor } from '../stores/authStore';
 
@@ -45,10 +47,7 @@ export function convertApprovedRequestToPurchaseOrder(
   }
 
   // Guard against double conversion.
-  const existing = purchaseOrderStore.getState().purchaseOrders.find(
-    (order) => order.orderNumber === request.id,
-  );
-  if (existing) {
+  if (existsPurchaseOrderByNumber(request.id)) {
     throw new Error('PurchaseRequest already converted to PurchaseOrder.');
   }
 

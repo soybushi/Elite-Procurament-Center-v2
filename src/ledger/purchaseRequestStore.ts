@@ -43,6 +43,12 @@ export const usePurchaseRequestStore = create<PurchaseRequestState>()(
 /*  TODO: Remove once services migrate to usePurchaseRequestStore     */
 /* ------------------------------------------------------------------ */
 
+/**
+ * ⚠ INTERNAL DOMAIN STORE
+ * DO NOT IMPORT THIS DIRECTLY FROM UI LAYER.
+ * All mutations must go through the service layer.
+ * UI must ONLY use: usePurchaseRequestStore
+ */
 export const purchaseRequestStore = {
   getState() {
     return usePurchaseRequestStore.getState();

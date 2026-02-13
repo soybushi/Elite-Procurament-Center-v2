@@ -9,6 +9,8 @@ export type Action =
   | 'PR_APPROVE'
   | 'PR_REJECT'
   | 'PR_CONVERT_TO_PO'
+  | 'TRANSFER_CREATE'
+  | 'TRANSFER_UPDATE'
   | 'LEDGER_MOVE_IN'
   | 'LEDGER_MOVE_OUT'
   | 'LEDGER_ADJUST'

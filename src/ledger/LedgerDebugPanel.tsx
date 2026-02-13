@@ -4,7 +4,7 @@
 /* ------------------------------------------------------------------ */
 
 import { useState } from 'react';
-import { ledgerStore } from './ledgerStore';
+import { getAllMovements } from './ledgerQueryService';
 import {
   getBalanceBySku,
   getSkuKardex,
@@ -110,8 +110,8 @@ export default function LedgerDebugPanel() {
   const [totalMovements, setTotalMovements] = useState<number>(0);
 
   function handleQuery() {
-    const state = ledgerStore.getState();
-    setTotalMovements(state.movements.length);
+    const movements = getAllMovements();
+    setTotalMovements(movements.length);
 
     if (sku.trim() && warehouseId.trim()) {
       setBalance(getBalanceBySku(sku.trim(), warehouseId.trim()));

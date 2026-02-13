@@ -6,7 +6,8 @@
 import type { Movement, MovementType } from '../types';
 import type { ImportResult, StagedMovement } from '../importers/eflower/types';
 import type { ApplyBatchError, ApplyBatchResult } from './types';
-import { ledgerStore } from './ledgerStore';
+import { getImportedBatches, getAllMovements } from './ledgerQueryService';
+import { addMovements, setLedgerState } from './ledgerService';
 import { createMovementBase } from '../config/movementDefaults';
 import { normalizeWarehouseName } from '../config/warehouseMaster';
 
@@ -113,8 +114,8 @@ export function applyEFlowerImportResultToLedger(
   const batchId = batch.batchId;
 
   // ---- Duplicate batch guard ----
-  const state = ledgerStore.getState();
-  if (state.importedBatches[batchId]) {
+  const importedBatches = getImportedBatches();
+  if (importedBatches[batchId]) {
     return {
       batchId,
       rowsApplied: 0,
@@ -141,19 +142,23 @@ export function applyEFlowerImportResultToLedger(
 
   // ---- Persist to store ----
   if (validMovements.length > 0) {
-    ledgerStore.addMovements(validMovements);
+    addMovements(validMovements);
   }
 
-  // Register batch summary (mutate internal state directly for atomicity).
-  const currentState = ledgerStore.getState();
-  currentState.importedBatches[batchId] = {
+  // Register batch summary via ledgerService.
+  const currentBatches = getImportedBatches();
+  currentBatches[batchId] = {
     kind: batch.kind,
     sourceFileName: batch.sourceFileName,
     receivedAt: batch.receivedAt,
     rowsApplied,
     rowsRejected,
   };
-  ledgerStore.setState(currentState);
+  setLedgerState({
+    companyId,
+    movements: getAllMovements(),
+    importedBatches: currentBatches,
+  });
 
   return { batchId, rowsApplied, rowsRejected, errors };
 }

@@ -301,6 +301,7 @@ export interface SupplierPrice {
 export type AuditEntityType =
   | 'purchase_request'
   | 'purchase_order'
+  | 'transfer'
   | 'movement';
 
 export type AuditAction =
