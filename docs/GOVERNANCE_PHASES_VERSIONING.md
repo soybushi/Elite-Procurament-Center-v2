@@ -102,7 +102,7 @@ VALIDACIÓN:
 
 ---
 
-## 4. Regla AI/FITO (Arquitectura Inviolable / Flujo Integrado de Transacciones Oficiales)
+## 4. Regla AI/LUNO (Arquitectura Inviolable / Flujo Integrado de Transacciones Oficiales)
 
 Estas restricciones aplican a **toda** modificación, ya sea humana o generada por IA:
 
@@ -171,5 +171,5 @@ Este documento entra en vigor a partir de su creación y aplica a todas las fase
 - **Obligación de clasificación de ideas nuevas.** Toda idea debe pasar por el flujo Clasificación → Decisión → Justificación antes de cualquier línea de código.
 - **Commit obligatorio al cerrar bloque.** Al completar un bloque arquitectónico se debe versionar inmediatamente; queda prohibido acumular cambios sin commit.
 - **Snapshot limpio antes de nueva fase.** No se inicia fase nueva sin que la anterior esté 100 % commiteada, con build limpio y sin archivos sin rastrear.
-- **Prohibición de modificar stores directamente (AI/FITO).** Los stores son fuente de verdad inviolable; toda mutación pasa por servicios oficiales, con auditoría y respeto de roles.
+- **Prohibición de modificar stores directamente (AI/LUNO).** Los stores son fuente de verdad inviolable; toda mutación pasa por servicios oficiales, con auditoría y respeto de roles.
 - **Obligación de validación con `npm run build`.** Todo cambio debe pasar el build antes de considerarse completo; nunca se versiona código que no compile.
