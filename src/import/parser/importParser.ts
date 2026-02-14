@@ -12,39 +12,68 @@ export interface ParsedImportRow {
   quantity: number
 }
 
-export interface ImportParseResult {
-  valid: ParsedImportRow[]
-  invalid: { row: RawImportRow; reason: string }[]
-}
-
 export interface ProductMasterEntry {
   id: string
+}
+
+export type ImportErrorCode =
+  | 'INVALID_PRODUCT'
+  | 'INVALID_WAREHOUSE'
+  | 'MISSING_FIELD'
+  | 'INVALID_FORMAT'
+
+export interface InvalidRow {
+  row: RawImportRow
+  reason: ImportErrorCode
+}
+
+export interface ImportSummary {
+  totalRows: number
+  validCount: number
+  invalidCount: number
+  errorBreakdown: Record<ImportErrorCode, number>
+}
+
+export interface ImportResult<T> {
+  summary: ImportSummary
+  valid: T[]
+  invalid: InvalidRow[]
 }
 
 export function parseImportRows(
   rows: RawImportRow[],
   productMaster: ProductMasterEntry[]
-): ImportParseResult {
+): ImportResult<ParsedImportRow> {
   const valid: ParsedImportRow[] = []
-  const invalid: { row: RawImportRow; reason: string }[] = []
+  const invalid: InvalidRow[] = []
   const productIds = new Set(productMaster.map((p) => p.id))
+  const errorBreakdown: Record<ImportErrorCode, number> = {
+    INVALID_PRODUCT: 0,
+    INVALID_WAREHOUSE: 0,
+    MISSING_FIELD: 0,
+    INVALID_FORMAT: 0
+  }
 
   for (const row of rows) {
     const normalizedWarehouse = normalizeWarehouseName(row.warehouse)
     if (!row.warehouse || normalizedWarehouse === '') {
-      invalid.push({ row, reason: 'Warehouse vacío o inválido' })
+      invalid.push({ row, reason: 'INVALID_WAREHOUSE' })
+      errorBreakdown.INVALID_WAREHOUSE++
       continue
     }
     if (!row.productId || row.productId.trim() === '') {
-      invalid.push({ row, reason: 'ProductId vacío' })
+      invalid.push({ row, reason: 'MISSING_FIELD' })
+      errorBreakdown.MISSING_FIELD++
       continue
     }
     if (typeof row.quantity !== 'number' || row.quantity <= 0) {
-      invalid.push({ row, reason: 'Quantity debe ser > 0' })
+      invalid.push({ row, reason: 'INVALID_FORMAT' })
+      errorBreakdown.INVALID_FORMAT++
       continue
     }
     if (!productIds.has(row.productId)) {
-      invalid.push({ row, reason: 'PRODUCT_NOT_FOUND' })
+      invalid.push({ row, reason: 'INVALID_PRODUCT' })
+      errorBreakdown.INVALID_PRODUCT++
       continue
     }
     valid.push({
@@ -53,5 +82,11 @@ export function parseImportRows(
       quantity: row.quantity
     })
   }
-  return { valid, invalid }
+  const summary: ImportSummary = {
+    totalRows: rows.length,
+    validCount: valid.length,
+    invalidCount: invalid.length,
+    errorBreakdown
+  }
+  return { summary, valid, invalid }
 }
