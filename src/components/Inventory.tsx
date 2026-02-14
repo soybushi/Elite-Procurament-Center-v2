@@ -1,11 +1,73 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { InventoryItem, PriceItem, HistoryItem } from '../types';
 import { csv, parseCSV } from '../utils/helpers';
 import { getProductByCode } from '../utils/data';
-import { SI, FS, Th, EC, Inp, Btn, Modal } from './shared/UI';
+import { SI, FS, EC, Inp, Btn, Modal } from './shared/UI';
 import { Info, Box, BarChart3, PieChart as PieChartIcon, Package, ArrowUp, ArrowDown, ArrowUpDown, Warehouse, Percent, Hash, Upload, Download, Trash2, X, AlertTriangle, ArrowRightLeft, Plus, CheckCircle2, AlertCircle, Maximize2, Minimize2, ArrowRight, Activity, Eraser, RotateCcw, Check } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { FixedSizeList, ListChildComponentProps } from '../shims/react-window';
+
+
+
+const INVENTORY_COLUMN_TEMPLATE = "110px minmax(320px,1.9fr) 150px 150px 80px 180px 120px 100px";
+const INVENTORY_ROW_HEIGHT = 56;
+
+type InventoryVirtualRowData = {
+  rows: InventoryItem[];
+  whVolume: Record<string, number>;
+  up: (item: InventoryItem, field: string, value: number) => void;
+};
+
+const InventoryVirtualRow = ({ index, style, data }: ListChildComponentProps<InventoryVirtualRowData>) => {
+  const item = data.rows[index];
+  const totalVol = data.whVolume[item.wh] || 0;
+  const pct = (item.q && totalVol) ? (item.q / totalVol) : 0;
+
+  return (
+    <div style={style} className="px-2">
+      <div className="grid h-full items-center border-b border-bd hover:bg-ac/30 transition-colors" style={{ gridTemplateColumns: INVENTORY_COLUMN_TEMPLATE }}>
+        <div className="px-4 py-3 align-middle">
+          <span className="font-mono font-bold text-bl text-xs bg-bl/10 px-2 py-1 rounded-lg border border-bl/10">
+            {item.id}
+          </span>
+        </div>
+        <div className="px-4 py-3 align-middle">
+          <div className="font-bold text-tx text-xs leading-snug truncate" title={item.nm}>{item.nm}</div>
+        </div>
+        <div className="px-4 py-3 align-middle">
+          <div className="text-[11px] font-bold text-t2 uppercase tracking-wide truncate" title={item.cat}>{item.cat || "-"}</div>
+        </div>
+        <div className="px-4 py-3 align-middle">
+          <div className="text-[11px] font-medium text-t3 truncate" title={item.sb}>{item.sb || "-"}</div>
+        </div>
+        <div className="px-4 py-3 align-middle text-center">
+          <span className="text-[10px] font-black text-t3 bg-s2 px-1.5 py-0.5 rounded border border-bd/60 uppercase">
+            {item.unimed || "UND"}
+          </span>
+        </div>
+        <div className="px-4 py-3 align-middle">
+          <div className="text-xs font-semibold text-t2 truncate flex items-center gap-1.5" title={item.wh}>
+            <span className="w-1.5 h-1.5 rounded-full bg-t3/50 shrink-0"></span>
+            <span className="truncate">{item.wh}</span>
+          </div>
+        </div>
+        <div className="px-4 py-3 text-right align-middle">
+          <span className="text-sm font-bold text-tx tabular-nums bg-s2/50 px-2 py-1 rounded-lg">
+            <EC value={item.q} num onSave={v => data.up(item, "q", Math.round(v))} />
+          </span>
+        </div>
+        <div className="px-4 py-3 text-right align-middle">
+          {pct ? (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums" style={{ color: 'var(--bl)', backgroundColor: 'var(--bl)15' }}>
+              {(pct * 100).toFixed(4)}%
+            </span>
+          ) : <span className="text-t3 text-[10px] italic">-</span>}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Animation Helper Component
 const CountUp = ({ value, duration = 800, formatter }: { value: number, duration?: number, formatter?: (v: number) => string }) => {
@@ -75,6 +137,26 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
   const [blockOpacity, setBlockOpacity] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const invRef = useRef(inv);
+  const tableViewportRef = useRef<HTMLDivElement>(null);
+  const [tableViewportHeight, setTableViewportHeight] = useState(480);
+
+  useEffect(() => {
+    invRef.current = inv;
+  }, [inv]);
+
+  useEffect(() => {
+    if (!tableViewportRef.current) return;
+
+    const updateHeight = () => {
+      if (tableViewportRef.current) setTableViewportHeight(tableViewportRef.current.clientHeight);
+    };
+
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(tableViewportRef.current);
+    return () => observer.disconnect();
+  }, []);
   
   // Sorting State
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | 'none' }>({ key: 'none', direction: 'none' });
@@ -230,9 +312,15 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
     }
   }, [stats]);
 
-  const up = (item: any, f: string, v: number) => { 
+  const up = useCallback((item: any, f: string, v: number) => { 
     setInv(p => p.map(i => (i.id === item.id && i.wh === item.wh) ? { ...i, [f]: v } : i)); 
-  };
+  }, [setInv]);
+
+  const virtualRowData = useMemo<InventoryVirtualRowData>(() => ({
+    rows: sortedFil as InventoryItem[],
+    whVolume,
+    up: up as (item: InventoryItem, field: string, value: number) => void
+  }), [sortedFil, whVolume, up]);
   
   // Check if movement form has data (dirty) to lock mode switching
   const isMoveDirty = useMemo(() => moveRows.length > 1 || moveRows.some(r => r.code || r.q), [moveRows]);
@@ -268,6 +356,15 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
       setTimeout(() => setClearFeedback(false), 1500);
   };
 
+  const findInventoryItem = useCallback((code: string, warehouse?: string) => {
+    return invRef.current.find(i => String(i.id) === String(code) && (!warehouse || i.wh === warehouse));
+  }, []);
+
+  const isKnownProductCode = useCallback((code: string) => {
+    if (!code) return true;
+    return invRef.current.some(i => String(i.id) === String(code)) || !!getProductByCode(code);
+  }, []);
+
   const handleMoveRowChange = (id: number, field: string, value: string) => {
     setMoveRows(prev => prev.map(row => {
         if (row.id !== id) return row;
@@ -276,7 +373,7 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
         // Auto-complete Description
         if (field === 'code') {
              // Find description from any item with same ID (desc should be consistent)
-             let found = inv.find(i => String(i.id) === value);
+             let found = findInventoryItem(value);
              if (!found) {
                 // If not in inventory, check master data
                 const m = getProductByCode(value);
@@ -288,7 +385,7 @@ export default function Inventory({ inv, setInv, whs, prc, setHist }: Props) {
     }));
   };
 
-const validateAndConfirm = () => {
+const validateAndConfirm = useCallback(() => {
   if (!moveWh) {
     alert("Seleccione una bodega.");
     return;
@@ -303,9 +400,7 @@ const validateAndConfirm = () => {
 
   if (moveType === "OUT") {
     for (let row of validRows) {
-      const stockItem = inv.find(
-        i => String(i.id) === String(row.code) && i.wh === moveWh
-      );
+      const stockItem = findInventoryItem(String(row.code), moveWh);
 
       if (!stockItem) {
         alert(`El producto ${row.code} no existe en esta bodega.`);
@@ -322,9 +417,9 @@ const validateAndConfirm = () => {
   }
 
   setConfirmOpen(true);
-};
+}, [findInventoryItem, moveRows, moveType, moveWh]);
 
-const executeMovement = () => {
+const executeMovement = useCallback(() => {
   const validRows = moveRows.filter(r => r.code && Number(r.q) > 0);
   const modifier = moveType === "IN" ? 1 : -1;
   const batchId = (moveType === "IN" ? "IN-" : "OUT-") + Date.now().toString();
@@ -386,7 +481,26 @@ const executeMovement = () => {
   setTimeout(() => {
     setSuccessAnim(false);
   }, 2500);
-};
+}, [moveRows, moveType, moveWh, setHist, setInv]);
+
+  const validateAndConfirmRef = useRef(validateAndConfirm);
+  const executeMovementRef = useRef(executeMovement);
+
+  useEffect(() => {
+    validateAndConfirmRef.current = validateAndConfirm;
+  }, [validateAndConfirm]);
+
+  useEffect(() => {
+    executeMovementRef.current = executeMovement;
+  }, [executeMovement]);
+
+  const handleConfirmMovementClick = useCallback(() => {
+    validateAndConfirmRef.current();
+  }, []);
+
+  const handleExecuteMovement = useCallback(() => {
+    executeMovementRef.current();
+  }, []);
   
   const handleImport = (txt: string) => {
     const data = parseCSV(txt);
@@ -772,92 +886,51 @@ const executeMovement = () => {
       )}
 
       <div className="bg-sf rounded-3xl overflow-hidden shadow-sm border border-bd flex-1 flex flex-col min-h-0">
-        <div className="overflow-y-auto custom-scrollbar flex-1">
-          <table className="w-full text-sm text-left border-collapse table-fixed">
-            <thead className="sticky top-0 bg-s2/95 z-20 shadow-sm backdrop-blur-md">
-              <tr>
-                <Th w={110}><SortHeader label="Código" colKey="id" /></Th>
-                <Th><SortHeader label="Descripción" colKey="nm" /></Th>
-                <Th w={150}><SortHeader label="Categoría" colKey="cat" /></Th>
-                <Th w={150}><SortHeader label="Subcategoría" colKey="sb" /></Th>
-                <Th w={80} a="center">
-                    <div className="flex items-center justify-center">
-                        <SortHeader label="Medida" colKey="unimed" align="center" />
-                    </div>
-                </Th>
-                <Th w={180}><SortHeader label="Bodega" colKey="wh" /></Th>
-                <Th w={120} a="right">
-                    <div className="flex items-center justify-end">
-                        <SortHeader label="Cantidad" colKey="q" align="right" />
-                    </div>
-                </Th>
-                <Th w={100} a="right">
-                    <div className="flex items-center justify-end">
-                        <SortHeader label="% Vol" colKey="pct" align="right" />
-                    </div>
-                </Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-bd">
-              {sortedFil.length === 0 ? (
-                  <tr>
-                      <td colSpan={8} className="p-20 text-center text-t3 opacity-40">
-                          <div className="flex flex-col items-center gap-3">
-                              <Box size={48} strokeWidth={1} />
-                              <span className="text-sm font-medium">No se encontraron items</span>
-                          </div>
-                      </td>
-                  </tr>
-              ) : (
-                  sortedFil.map((item: any) => {
-                    const totalVol = whVolume[item.wh] || 0;
-                    const pct = (item.q && totalVol) ? (item.q / totalVol) : 0;
-                    
-                    return (
-                    <tr key={item.id + "-" + item.wh} className="hover:bg-ac/30 transition-colors group h-14">
-                      <td className="px-4 py-3 align-middle first:pl-6">
-                          <span className="font-mono font-bold text-bl text-xs bg-bl/10 px-2 py-1 rounded-lg border border-bl/10">
-                            {item.id}
-                          </span>
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                          <div className="font-bold text-tx text-xs leading-snug truncate" title={item.nm}>{item.nm}</div>
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                          <div className="text-[11px] font-bold text-t2 uppercase tracking-wide truncate" title={item.cat}>{item.cat || "-"}</div>
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                          <div className="text-[11px] font-medium text-t3 truncate" title={item.sb}>{item.sb || "-"}</div>
-                      </td>
-                      <td className="px-4 py-3 align-middle text-center">
-                          <span className="text-[10px] font-black text-t3 bg-s2 px-1.5 py-0.5 rounded border border-bd/60 uppercase">
-                              {item.unimed || "UND"}
-                          </span>
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                          <div className="text-xs font-semibold text-t2 truncate flex items-center gap-1.5" title={item.wh}>
-                              <span className="w-1.5 h-1.5 rounded-full bg-t3/50 shrink-0"></span>
-                              <span className="truncate">{item.wh}</span>
-                          </div>
-                      </td>
-                      <td className="px-4 py-3 text-right align-middle">
-                          <span className="text-sm font-bold text-tx tabular-nums bg-s2/50 px-2 py-1 rounded-lg">
-                              <EC value={item.q} num onSave={v => up(item, "q", Math.round(v))} />
-                          </span>
-                      </td>
-                      <td className="px-4 py-3 text-right align-middle last:pr-6">
-                         {pct ? (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums" 
-                                  style={{ color: 'var(--bl)', backgroundColor: 'var(--bl)15' }}>
-                                {(pct * 100).toFixed(4)}%
-                            </span>
-                         ) : <span className="text-t3 text-[10px] italic">-</span>}
-                      </td>
-                    </tr>
-                  )})
-              )}
-            </tbody>
-          </table>
+        <div className="bg-s2/95 z-20 shadow-sm backdrop-blur-md border-b border-bd/70 px-2">
+          <div className="grid w-full" style={{ gridTemplateColumns: INVENTORY_COLUMN_TEMPLATE }}>
+            <div className="px-4 py-3"><SortHeader label="Código" colKey="id" /></div>
+            <div className="px-4 py-3"><SortHeader label="Descripción" colKey="nm" /></div>
+            <div className="px-4 py-3"><SortHeader label="Categoría" colKey="cat" /></div>
+            <div className="px-4 py-3"><SortHeader label="Subcategoría" colKey="sb" /></div>
+            <div className="px-4 py-3 text-center">
+              <div className="flex items-center justify-center">
+                <SortHeader label="Medida" colKey="unimed" align="center" />
+              </div>
+            </div>
+            <div className="px-4 py-3"><SortHeader label="Bodega" colKey="wh" /></div>
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-end">
+                <SortHeader label="Cantidad" colKey="q" align="right" />
+              </div>
+            </div>
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-end">
+                <SortHeader label="% Vol" colKey="pct" align="right" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div ref={tableViewportRef} className="flex-1 min-h-0">
+          {sortedFil.length === 0 ? (
+            <div className="h-full flex items-center justify-center p-20 text-center text-t3 opacity-40">
+              <div className="flex flex-col items-center gap-3">
+                <Box size={48} strokeWidth={1} />
+                <span className="text-sm font-medium">No se encontraron items</span>
+              </div>
+            </div>
+          ) : (
+            <FixedSizeList
+              height={tableViewportHeight}
+              width="100%"
+              itemCount={sortedFil.length}
+              itemSize={INVENTORY_ROW_HEIGHT}
+              overscanCount={10}
+              itemData={virtualRowData}
+            >
+              {InventoryVirtualRow}
+            </FixedSizeList>
+          )}
         </div>
       </div>
 
@@ -995,9 +1068,9 @@ const executeMovement = () => {
                                   </thead>
                                   <tbody className="divide-y divide-bd/40 bg-sf">
                                       {moveRows.map((row, index) => {
-                                          const stockItem = inv.find(i => String(i.id) === String(row.code) && i.wh === moveWh);
+                                          const stockItem = findInventoryItem(String(row.code), moveWh);
                                           // Find the item in master list to get UoM even if not in stock
-                                          let masterItem = inv.find(i => String(i.id) === String(row.code));
+                                          let masterItem = findInventoryItem(String(row.code));
                                           if (!masterItem) {
                                             const m = getProductByCode(row.code);
                                             if (m) masterItem = { ...m, unimed: m.size } as any;
@@ -1007,7 +1080,7 @@ const executeMovement = () => {
                                           const qtyChange = Number(row.q) || 0;
                                           const finalStock = moveType === 'IN' ? currentStock + qtyChange : currentStock - qtyChange;
                                           // Check if code exists in either inventory OR master data
-                                          const productKnown = row.code ? (inv.some(i => String(i.id) === String(row.code)) || !!getProductByCode(row.code)) : true;
+                                          const productKnown = isKnownProductCode(String(row.code));
                                           const isCodeError = moveWh && !productKnown;
                                           const isStockError = moveWh && moveType === 'OUT' && (qtyChange > currentStock);
                                           const isFocused = index === focusIdx;
@@ -1130,14 +1203,14 @@ const executeMovement = () => {
                                   const activeCost = Number(currentRow?.cost) || 0;
                                   
                                   // Try to find master item data
-                                  let masterItem = inv.find(i => String(i.id) === String(activeCode));
+                                  let masterItem = findInventoryItem(String(activeCode));
                                   if (!masterItem) {
                                       const m = getProductByCode(activeCode);
                                       if (m) masterItem = { ...m, unimed: m.size } as any;
                                   }
 
                                   // Specific stock for selected warehouse
-                                  const stockItem = inv.find(i => String(i.id) === String(activeCode) && i.wh === moveWh);
+                                  const stockItem = findInventoryItem(String(activeCode), moveWh);
                                   const currentStock = stockItem ? stockItem.q : 0;
                                   
                                   // Calculate Impact
@@ -1252,7 +1325,7 @@ const executeMovement = () => {
                       <Btn variant="ghost" onClick={() => setMoveModalOpen(false)}>Cancelar</Btn>
                       <button 
                           disabled={!moveWh}
-                          onClick={validateAndConfirm}
+                          onClick={handleConfirmMovementClick}
                           className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none ${moveType === 'IN' ? 'bg-gn shadow-gn/20 hover:bg-gn/90' : 'bg-rd shadow-rd/20 hover:bg-rd/90'}`}
                       >
                           {moveType === 'IN' ? <ArrowDown size={18} strokeWidth={3} /> : <ArrowUp size={18} strokeWidth={3} />}
@@ -1268,7 +1341,7 @@ const executeMovement = () => {
           isOpen={confirmOpen} 
           onClose={() => setConfirmOpen(false)} 
           title="Confirmar Movimiento" 
-          onSave={executeMovement}
+          onSave={handleExecuteMovement}
           saveLabel="Confirmar"
       >
           <div className="space-y-4">
