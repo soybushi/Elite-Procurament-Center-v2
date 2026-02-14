@@ -2,14 +2,19 @@ import React, { useState } from 'react';
 import { TransferItem } from '../types';
 import { FS, Dt, Btn, Modal, Inp } from './shared/UI';
 import { Plus } from 'lucide-react';
+import { useTransferStore } from '../ledger/transferStore';
+import { createTransfer, updateTransfer } from '../ledger/transferService';
 
 interface Props {
-  tr: TransferItem[];
-  setTr: React.Dispatch<React.SetStateAction<TransferItem[]>>;
+  tr?: TransferItem[];
+  setTr?: React.Dispatch<React.SetStateAction<TransferItem[]>>;
   whs: string[];
 }
 
-export default function TrM({ tr, setTr, whs }: Props) {
+export default function TrM({ whs }: Props) {
+  // Source of truth: Zustand store (persisted)
+  const transfers = useTransferStore((state) => state.transfers);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [nf, setNf] = useState({ fr: "", to: "", it: "", qt: "", nt: "" });
   
@@ -18,20 +23,23 @@ export default function TrM({ tr, setTr, whs }: Props) {
   const stC: Record<string, string> = { preparing: "var(--am)", in_transit: "var(--bl)", received: "var(--gn)" };
   
   const adv = (id: string) => { 
-    setTr(p => p.map(x => { 
-      if (x.id !== id) return x; 
-      const ci = stF.indexOf(x.st); 
-      if (ci >= stF.length - 1) return x; 
-      const ns = stF[ci + 1]; 
-      const now = new Date().toISOString().replace("T", " ").slice(0, 16); 
-      return { ...x, st: ns, dp: ns === "in_transit" ? now : x.dp, rv: ns === "received" ? now : x.rv }; 
-    })); 
+    const x = transfers.find(t => t.id === id);
+    if (!x) return;
+    const ci = stF.indexOf(x.st); 
+    if (ci >= stF.length - 1) return; 
+    const ns = stF[ci + 1]; 
+    const now = new Date().toISOString().replace("T", " ").slice(0, 16); 
+    updateTransfer({ ...x, st: ns, dp: ns === "in_transit" ? now : x.dp, rv: ns === "received" ? now : x.rv });
   };
   
   const add = () => { 
     if (!nf.fr || !nf.to || !nf.it || !nf.qt) return; 
-    const now = new Date().toISOString().replace("T", " ").slice(0, 16); 
-    setTr(p => [{ id: "TR-" + String(p.length + 1).padStart(3, "0"), fr: nf.fr, to: nf.to, it: [{ nm: nf.it, qt: parseInt(nf.qt) || 0 }], st: "preparing", cr: now, dp: null, rv: null, nt: nf.nt }, ...p]); 
+    createTransfer({
+      fr: nf.fr,
+      to: nf.to,
+      it: [{ nm: nf.it, qt: parseInt(nf.qt) || 0 }],
+      nt: nf.nt,
+    });
     setNf({ fr: "", to: "", it: "", qt: "", nt: "" }); 
     setModalOpen(false); 
   };
@@ -48,7 +56,7 @@ export default function TrM({ tr, setTr, whs }: Props) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-160px)]">
         {stF.map(st => { 
-          const items = tr.filter(x => x.st === st); 
+          const items = transfers.filter(x => x.st === st); 
           return (
             <div key={st} className="bg-sf rounded-2xl flex flex-col h-full shadow-sm border border-bd/40 overflow-hidden">
               <div className="px-5 py-4 border-b border-bd/40 flex items-center justify-between bg-s2/30 backdrop-blur-sm">
