@@ -17,9 +17,17 @@ export interface ImportParseResult {
   invalid: { row: RawImportRow; reason: string }[]
 }
 
-export function parseImportRows(rows: RawImportRow[]): ImportParseResult {
+export interface ProductMasterEntry {
+  id: string
+}
+
+export function parseImportRows(
+  rows: RawImportRow[],
+  productMaster: ProductMasterEntry[]
+): ImportParseResult {
   const valid: ParsedImportRow[] = []
   const invalid: { row: RawImportRow; reason: string }[] = []
+  const productIds = new Set(productMaster.map((p) => p.id))
 
   for (const row of rows) {
     const normalizedWarehouse = normalizeWarehouseName(row.warehouse)
@@ -33,6 +41,10 @@ export function parseImportRows(rows: RawImportRow[]): ImportParseResult {
     }
     if (typeof row.quantity !== 'number' || row.quantity <= 0) {
       invalid.push({ row, reason: 'Quantity debe ser > 0' })
+      continue
+    }
+    if (!productIds.has(row.productId)) {
+      invalid.push({ row, reason: 'PRODUCT_NOT_FOUND' })
       continue
     }
     valid.push({
