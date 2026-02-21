@@ -140,3 +140,6 @@ vite.config.ts.timestamp-*
 
 # Local snapshot artifacts (not versioned)
 .snapshots/
+
+.audit/
+audit-packet-pre-fase4.zip
