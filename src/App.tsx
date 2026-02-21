@@ -83,18 +83,9 @@ export default function App() {
   // Purchase Requests — owned by Zustand store (persisted under "ef-reqs")
   const reqs = usePurchaseRequestStore((s) => s.purchaseRequests);
 
-  // Persistence Effects
-  useEffect(() => {
-    localStorage.setItem('ef-whs', JSON.stringify(whs));
-  }, [whs]);
-
-  useEffect(() => {
-    localStorage.setItem('ef-inv', JSON.stringify(inv));
-  }, [inv]);
-
-  useEffect(() => {
-    localStorage.setItem('ef-hist', JSON.stringify(hist));
-  }, [hist]);
+  // legacy bootstrap read-only; DO NOT write to localStorage (B3)
+  // whs/inv/hist are seeded from localStorage once on mount (getItem above).
+  // Ongoing persistence is handled by Zustand stores via IndexedDB (idbStorage).
 
   const aTr = tr.filter(x => x.st !== "received").length;
 
