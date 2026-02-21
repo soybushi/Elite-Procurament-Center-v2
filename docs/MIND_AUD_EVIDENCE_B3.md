@@ -1,61 +1,64 @@
-# Evidencia de Cierre — B3: UI no escribe a localStorage
+# Evidencia de Cierre — B3: UI no escribe a localStorage/sessionStorage
 
-**Rama:** `chore/audit-fase4-master-alignment`
-**Commit de corrección:** `81e7b75`
-**Fecha de recolección:** 2026-02-21
-**Responsable técnico:** equipo de desarrollo (evidencia generada automáticamente)
-**Blocker de referencia:** B3 — "Stores de dominio persisten en IDB; la UI no debe escribir directamente a localStorage"
-
----
-
-## 1. Resumen ejecutivo
-
-La búsqueda automatizada sobre `src/` confirma **0 (cero) llamadas** a
-`localStorage.setItem`, `localStorage.removeItem`, `localStorage.clear`,
-`sessionStorage.setItem`, `sessionStorage.removeItem` o `sessionStorage.clear`
-en el código fuente de la interfaz de usuario.
-
-Las tres escrituras que existían (`ef-whs`, `ef-inv`, `ef-hist`) fueron
-eliminadas en el commit `81e7b75`. Los estados que manejaban esas claves
-ahora viven en stores de Zustand que persisten exclusivamente a IndexedDB
-mediante `idbStorage` (localforage).
+| Campo | Valor |
+|-------|-------|
+| **Blocker** | B3 — "Stores de dominio persisten en IDB; la UI no debe escribir directamente a localStorage/sessionStorage" |
+| **Rama** | `chore/audit-fase4-master-alignment` |
+| **Commit de corrección** | `81e7b75` — `fix(persist): remove UI localStorage writes (legacy read-only)` |
+| **Fecha de recolección** | 2026-02-21 |
+| **Logs locales** | `.audit/b3_grep_writes.txt`, `.audit/b3_grep_window.txt`, `.audit/b3_grep_reads.txt`, `.audit/b3_typecheck.txt`, `.audit/b3_test.txt`, `.audit/b3_build.txt` |
+| **Nota** | `.audit/` está en `.gitignore` y no se versiona |
 
 ---
 
-## 2. Evidencia de búsqueda — escrituras a localStorage/sessionStorage
+## 1. Regla B3 — Qué se prohíbe y qué se permite
 
-Los siguientes comandos se ejecutaron sobre el directorio `src/` y produjeron
-**cero coincidencias** (código de salida 1, sin líneas de resultado):
-
-```
-rg -n "localStorage\.(setItem|removeItem|clear)\("    src/
-rg -n "sessionStorage\.(setItem|removeItem|clear)\("  src/
-rg -n "window\.(localStorage|sessionStorage)\.(setItem|removeItem|clear)\(" src/
-```
-
-Salida: vacía (ningún match). Archivos de evidencia: `.audit/localStorage_writes.txt`,
-`.audit/sessionStorage_writes.txt`, `.audit/window_storage_writes.txt` (tamaño 0 bytes cada uno).
+| | Regla |
+|-|-------|
+| **Prohibido** | Cualquier escritura a `localStorage` o `sessionStorage` desde código UI (`setItem`, `removeItem`, `clear`) |
+| **Permitido** | Lecturas de un solo uso en la inicialización del componente raíz (`getItem`, exclusivamente bootstrap legacy) |
+| **Obligatorio** | Toda persistencia activa debe ir a través de los stores de Zustand con middleware `persist` → `idbStorage` (IndexedDB/localforage) |
 
 ---
 
-## 3. Lecturas restantes — bootstrap de solo lectura (legítimas)
+## 2. Resultado de búsqueda — escrituras (CERO COINCIDENCIAS)
 
-Las únicas referencias a `localStorage.getItem` que quedan en `src/` son
-lecturas de un solo uso en el montado inicial del componente raíz
-(`src/App.tsx`) y en stores de versiones legadas. Son bootstrap de solo lectura
-y **no constituyen escritura**.
+Comandos ejecutados sobre `src/`:
 
-```
-src/ledger/transferStore.ts:21      window.localStorage.getItem('ef-transfers')
-src/ledger/ledgerStore.ts:31        window.localStorage.getItem('ef-ledger')
-src/ledger/purchaseOrderStore.ts:28 window.localStorage.getItem('ef-pos')
-src/ledger/purchaseRequestStore.ts:21 window.localStorage.getItem('ef-reqs')
-src/App.tsx:30                      localStorage.getItem('ef-whs')
-src/App.tsx:62                      localStorage.getItem('ef-inv')
-src/App.tsx:72                      localStorage.getItem('ef-hist')
+```sh
+rg -n "localStorage\.(setItem|removeItem|clear)\b|sessionStorage\.(setItem|removeItem|clear)\b" src
+rg -n "window\.(localStorage|sessionStorage)\.(setItem|removeItem|clear)\b" src
 ```
 
-Comentario en código (`src/App.tsx`):
+**Resultado: 0 coincidencias.** Salida vacía. Código de salida 1 (sin matches).
+
+Archivo de evidencia: `.audit/b3_grep_writes.txt` (tamaño 0 bytes).
+
+---
+
+## 3. Lecturas restantes — clasificación
+
+Comando ejecutado:
+
+```sh
+rg -n "localStorage\.getItem\b|sessionStorage\.getItem\b|window\.localStorage\.getItem\b" src
+```
+
+Resultado (7 líneas — todas son `getItem`, ninguna es escritura):
+
+| Archivo | Línea | Clave | Contexto |
+|---------|-------|-------|---------|
+| `src/App.tsx` | 30 | `ef-whs` | Bootstrap legacy — lee warehouses al montar el componente raíz (read-only) |
+| `src/App.tsx` | 62 | `ef-inv` | Bootstrap legacy — lee inventario al montar el componente raíz (read-only) |
+| `src/App.tsx` | 72 | `ef-hist` | Bootstrap legacy — lee historial al montar el componente raíz (read-only) |
+| `src/ledger/transferStore.ts` | 21 | `ef-transfers` | Bootstrap de migración — lee datos heredados si IDB está vacío (read-only) |
+| `src/ledger/ledgerStore.ts` | 31 | `ef-ledger` | Bootstrap de migración — lee datos heredados si IDB está vacío (read-only) |
+| `src/ledger/purchaseOrderStore.ts` | 28 | `ef-pos` | Bootstrap de migración — lee datos heredados si IDB está vacío (read-only) |
+| `src/ledger/purchaseRequestStore.ts` | 21 | `ef-reqs` | Bootstrap de migración — lee datos heredados si IDB está vacío (read-only) |
+
+**Clasificación:** todos son `getItem` de lectura única en la inicialización. Ninguno escribe de vuelta a `localStorage`. Cumplen la excepción de "bootstrap legacy read-only" de la regla B3.
+
+Comentario explícito en `src/App.tsx` (líneas 84-86):
 
 ```typescript
 // legacy bootstrap read-only; DO NOT write to localStorage (B3)
@@ -65,13 +68,38 @@ Comentario en código (`src/App.tsx`):
 
 ---
 
-## 4. Diff del commit de corrección (src/App.tsx)
+## 4. Arquitectura de persistencia vigente
 
-Commit `81e7b75` — eliminó exactamente 12 líneas de efectos de escritura y
-los reemplazó con referencias a los stores de Zustand correspondientes:
+```
+UI (React / hooks)
+      │
+      ▼ lectura de estado
+Zustand store  ──persist middleware──► idbStorage (localforage) ──► IndexedDB
+      ▲
+      │ escritura de estado
+Service layer (assertCan → store.update → auditStore.addLog)
+
+localStorage ──getItem (único, al montar)──► useState seed value
+             (solo lectura; no hay setItem en ningún path activo)
+```
+
+### Stores de dominio y sus claves IDB
+
+| Store | Clave IDB | Tipo de middleware |
+|-------|-----------|-------------------|
+| `useAuditStore` | `ef-audit` | Zustand `persist` + `idbStorage` |
+| `usePurchaseRequestStore` | `ef-reqs` | Zustand `persist` + `idbStorage` |
+| `usePurchaseOrderStore` | `ef-pos` | Zustand `persist` + `idbStorage` |
+| `useLedgerStore` | `ef-ledger` | Zustand `persist` + `idbStorage` |
+| `useTransferStore` | `ef-transfers` | Zustand `persist` + `idbStorage` |
+
+---
+
+## 5. Cambio que cerró B3 (commit `81e7b75`)
+
+Se eliminaron tres bloques `useEffect` en `src/App.tsx` que escribían después de cada cambio de estado:
 
 ```diff
--  // Persistence Effects
 -  useEffect(() => {
 -    localStorage.setItem('ef-whs', JSON.stringify(whs));
 -  }, [whs]);
@@ -87,105 +115,79 @@ los reemplazó con referencias a los stores de Zustand correspondientes:
 -  useEffect(() => {
 -    localStorage.setItem('ef-hist', JSON.stringify(hist));
 -  }, [hist]);
-
-+  // Transfers — owned by Zustand store (persisted under "ef-transfers")
-+  const tr = useTransferStore((s) => s.transfers);
-+
-+  // Purchase Requests — owned by Zustand store (persisted under "ef-reqs")
-+  const reqs = usePurchaseRequestStore((s) => s.purchaseRequests);
 +
 +  // legacy bootstrap read-only; DO NOT write to localStorage (B3)
 +  // whs/inv/hist are seeded from localStorage once on mount (getItem above).
 +  // Ongoing persistence is handled by Zustand stores via IndexedDB (idbStorage).
 ```
 
-Mensaje de commit completo:
+Los estados `reqs` y `tr` se convirtieron a referencias directas desde sus respectivos stores de Zustand:
 
-```
-fix(persist): remove UI localStorage writes (legacy read-only)
-
-Remove three useEffect blocks that were writing ef-whs, ef-inv, ef-hist
-to localStorage after every state change. These writes violated B3:
-all ongoing persistence must go through IndexedDB (Zustand + idbStorage).
-
-The three localStorage.getItem() calls in useState initializers are kept
-as legacy bootstrap reads (one-time seed on mount) with explicit comment:
-  // legacy bootstrap read-only; DO NOT write to localStorage (B3)
-
-Domain stores (ef-reqs, ef-pos, ef-ledger, ef-transfers, ef-audit) were
-already persisting exclusively to IndexedDB via localforage/idbStorage.
-
-rg confirms 0 localStorage.setItem/removeItem/clear remaining in src/.
+```diff
+-  const [tr, setTr] = useState<TransferItem[]>([]);
+-  const [reqs, setReqs] = useState<PurchaseRequest[]>(() => { ... });
++  const tr = useTransferStore((s) => s.transfers);
++  const reqs = usePurchaseRequestStore((s) => s.purchaseRequests);
 ```
 
 ---
 
-## 5. Puertas de calidad — resultados post-corrección
-
-Todos los controles se ejecutaron en el mismo commit (`81e7b75`) y resultaron
-en código de salida 0:
+## 6. Puertas de calidad — commit `81e7b75`
 
 | Puerta | Comando | Resultado |
 |--------|---------|-----------|
 | Verificación de tipos | `npm run typecheck` | ✅ 0 errores |
-| Suite de pruebas | `npx vitest run` | ✅ 20/20 pruebas, 3 archivos |
+| Suite de pruebas | `npx vitest run` | ✅ 20/20 pruebas — 3 archivos |
 | Build de producción | `npm run build` | ✅ compilado sin errores |
 
 Detalle de pruebas:
 
 ```
-✓ src/ledger/__tests__/purchaseRequestService.test.ts (4 pruebas)
-✓ src/import/parser/__tests__/importParser.test.ts   (8 pruebas)
-✓ src/utils/__tests__/warehouseNormalizer.test.ts    (8 pruebas)
+✓ src/ledger/__tests__/purchaseRequestService.test.ts  (4 pruebas)
+✓ src/import/parser/__tests__/importParser.test.ts     (8 pruebas)
+✓ src/utils/__tests__/warehouseNormalizer.test.ts      (8 pruebas)
 
 Test Files: 3 passed (3)
 Tests:      20 passed (20)
 ```
 
----
-
-## 6. Arquitectura de persistencia vigente
-
-Después de esta corrección, el flujo de persistencia queda:
-
-```
-UI (React) ──hooks──► Zustand store ──persist──► idbStorage (localforage) ──► IndexedDB
-                                                          ▲
-                                          única ruta de escritura persistente
-
-localStorage ──getItem──► useState (bootstrap one-time, solo lectura)
-```
-
-Stores de dominio y sus claves IDB:
-
-| Store | Clave IDB |
-|-------|-----------|
-| `useAuditStore` | `ef-audit` |
-| `usePurchaseRequestStore` | `ef-reqs` |
-| `usePurchaseOrderStore` | `ef-pos` |
-| `useLedgerStore` | `ef-ledger` |
-| `useTransferStore` | `ef-transfers` |
+Logs completos en `.audit/b3_typecheck.txt`, `.audit/b3_test.txt`, `.audit/b3_build.txt`.
 
 ---
 
-## 7. Comandos para reproducir la evidencia
+## 7. Higiene de artefactos
 
-```bash
+Las siguientes entradas están presentes en `.gitignore` y no se versionan:
+
+```
+.audit/
+.snapshots/
+audit-packet-*.zip
+```
+
+---
+
+## 8. Cómo reproducir (comandos exactos)
+
+```sh
+# En rama: chore/audit-fase4-master-alignment
+
 # 1. Confirmar 0 escrituras
-rg -n "localStorage\.(setItem|removeItem|clear)\("    src/
-rg -n "sessionStorage\.(setItem|removeItem|clear)\("  src/
+rg -n "localStorage\.(setItem|removeItem|clear)\b|sessionStorage\.(setItem|removeItem|clear)\b" src
+# → sin output (exit 1)
 
-# 2. Puertas de calidad
+# 2. Ver lecturas bootstrap (clasificadas como read-only)
+rg -n "localStorage\.getItem\b|sessionStorage\.getItem\b|window\.localStorage\.getItem\b" src
+
+# 3. Puertas de calidad
 npm run typecheck
 npx vitest run
 npm run build
 
-# 3. Ver commit de corrección
+# 4. Ver commit de corrección
 git show 81e7b75 --stat
-git diff main...HEAD -- src/App.tsx
 ```
 
 ---
 
-*Documento generado automáticamente a partir de la ejecución de los comandos
-anteriores en la rama `chore/audit-fase4-master-alignment`, commit `81e7b75`.*
+*Los logs `.audit/` son locales y no se versionan (`.gitignore`). Para reproducir, clonar la rama y ejecutar los comandos del paso 8.*

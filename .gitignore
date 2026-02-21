@@ -142,4 +142,4 @@ vite.config.ts.timestamp-*
 .snapshots/
 
 .audit/
-audit-packet-pre-fase4.zip
+audit-packet-*.zip
