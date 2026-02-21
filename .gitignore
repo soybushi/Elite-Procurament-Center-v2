@@ -137,3 +137,10 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local snapshot artifacts (not versioned)
+.snapshots/
+
+.audit/
+audit-packet-*.zip
+mind_aud_pr5_evidence.zip
