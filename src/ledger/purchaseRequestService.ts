@@ -79,11 +79,19 @@ export function canTransition(
  *
  * Throws if the transition is not allowed.
  */
-/** Maps target status to the security action that governs it. */
+/**
+ * Maps every writable target status to the security action that governs it.
+ * All statuses that can be set via transitionPurchaseRequestStatus must appear
+ * here — omitting a status would allow policy-free transitions (POLICY GAP).
+ * Note: 'converted' is intentionally absent; that transition is gated by
+ * PR_CONVERT_TO_PO inside purchaseRequestConversionService before this
+ * function is called.
+ */
 const STATUS_ACTION_MAP: Partial<Record<PurchaseRequestStatus, Action>> = {
-  submitted: 'PR_SUBMIT',
-  approved:  'PR_APPROVE',
-  rejected:  'PR_REJECT',
+  submitted:    'PR_SUBMIT',
+  under_review: 'PR_UPDATE',
+  approved:     'PR_APPROVE',
+  rejected:     'PR_REJECT',
 };
 
 export function transitionPurchaseRequestStatus(
