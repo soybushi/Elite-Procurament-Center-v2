@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------ */
 /*  Ledger — Apply an E Flower ImportResult to the in-memory ledger   */
-/*  No UI, no side-effects beyond updating ledgerStore.               */
+/*  Service-level entrypoint with policy, company, and audit checks.  */
 /* ------------------------------------------------------------------ */
 
 import type { Movement, MovementType } from '../types';
@@ -9,13 +9,12 @@ import type { ApplyBatchError, ApplyBatchResult } from './types';
 import { getImportedBatches, getAllMovements } from './ledgerQueryService';
 import { addMovements, setLedgerState } from './ledgerService';
 import { createMovementBase } from '../config/movementDefaults';
-import { normalizeWarehouseName } from '../config/warehouseMaster';
+import { resolveWarehouseId } from '../config/warehouseMaster';
+import { getActor } from '../stores/authStore';
+import { assertCan } from '../core/security/policyEngine';
+import { createAuditLogBase } from '../config/auditDefaults';
+import { auditStore } from './auditStore';
 
-/* ------------------------------------------------------------------ */
-/*  Internal helpers                                                  */
-/* ------------------------------------------------------------------ */
-
-/** Returns true when the string can be parsed as a valid Date. */
 function isValidISODate(value: string): boolean {
   if (!value) return false;
   const d = new Date(value);
@@ -26,10 +25,6 @@ function makeError(rowIndex: number, code: string, message: string): ApplyBatchE
   return { rowIndex, code, message };
 }
 
-/**
- * Attempt to convert a StagedMovement into a canonical Movement.
- * Returns the Movement on success, or an array of errors on failure.
- */
 function convertStagedMovement(
   staged: StagedMovement,
   companyId: string,
@@ -37,83 +32,67 @@ function convertStagedMovement(
 ): Movement | ApplyBatchError[] {
   const errors: ApplyBatchError[] = [];
 
-  // --- warehouseName ---
-  const normalizedWh = normalizeWarehouseName(staged.warehouseName ?? '');
-  if (!normalizedWh) {
-    errors.push(makeError(rowIndex, 'WAREHOUSE_EMPTY', 'warehouseName is empty after normalisation.'));
+  const warehouseId = resolveWarehouseId(staged.warehouseName ?? '');
+  if (!warehouseId) {
+    errors.push(makeError(rowIndex, 'WAREHOUSE_UNKNOWN', 'warehouseName is not in warehouse master.'));
   }
 
-  // --- qty ---
   if (typeof staged.qty !== 'number' || !Number.isFinite(staged.qty)) {
     errors.push(makeError(rowIndex, 'QTY_INVALID', 'qty is not a valid number.'));
   }
 
-  // --- occurredAt ---
   if (!isValidISODate(staged.occurredAt)) {
     errors.push(makeError(rowIndex, 'DATE_INVALID', 'occurredAt is not a valid ISO date.'));
   }
 
-  // --- transfer must have warehouseIdTo ---
   if (staged.type === 'transfer') {
-    // StagedMovement doesn't carry warehouseIdTo — reject transfers without it.
-    errors.push(makeError(rowIndex, 'TRANSFER_NO_DEST', 'Transfer movements require a destination warehouse (warehouseIdTo) which is absent in staging.'));
+    errors.push(makeError(rowIndex, 'TRANSFER_NO_DEST', 'Transfer movements require warehouseIdTo in staging.'));
   }
 
-  if (errors.length > 0) return errors;
+  if (errors.length > 0 || !warehouseId) return errors;
 
-  // --- Build canonical Movement via createMovementBase ---
-  const mov: Movement = createMovementBase(
+  const movement: Movement = createMovementBase(
     companyId,
     staged.sku,
-    normalizedWh,               // warehouseId = normalized name for now
+    warehouseId,
     staged.type as MovementType,
     staged.qty,
     staged.occurredAt,
   );
 
-  // Override source to 'import' since this comes from the importer pipeline.
-  (mov as { source: string }).source = 'import';
+  movement.source = 'import';
 
-  // Carry over optional cost fields.
   if (staged.unitCost !== undefined && Number.isFinite(staged.unitCost)) {
-    mov.unitCost = staged.unitCost;
-    mov.totalCost = staged.unitCost * staged.qty;
+    movement.unitCost = staged.unitCost;
+    movement.totalCost = staged.unitCost * staged.qty;
   }
 
-  // Carry over documentRef → documentId.
   if (staged.documentRef) {
-    mov.documentId = staged.documentRef;
+    movement.documentId = staged.documentRef;
   }
 
-  // Carry over externalRefs (shallow copy — raw is NOT copied).
   if (staged.externalRefs && Object.keys(staged.externalRefs).length > 0) {
-    mov.externalRefs = { ...staged.externalRefs };
+    movement.externalRefs = { ...staged.externalRefs };
   }
 
-  return mov;
+  return movement;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public entry point                                                */
-/* ------------------------------------------------------------------ */
-
-/**
- * Applies a fully validated `ImportResult` (from the E Flower importer)
- * to the in-memory `ledgerStore`.
- *
- * - Detects duplicate batches by `batchId`.
- * - Converts each `StagedMovement` → canonical `Movement`.
- * - Rejects rows that fail validation (qty, date, warehouse, transfer dest).
- * - Registers the batch summary in `ledgerStore.importedBatches`.
- */
 export function applyEFlowerImportResultToLedger(
   importResult: ImportResult,
-  companyId: string,
+  expectedCompanyId?: string,
 ): ApplyBatchResult {
+  const actor = getActor();
+  assertCan(actor, 'DATA_IMPORT');
+
+  if (expectedCompanyId && expectedCompanyId !== actor.companyId) {
+    throw new Error('COMPANY_CONTEXT_MISMATCH');
+  }
+
+  const companyId = actor.companyId;
   const { batch, staged } = importResult;
   const batchId = batch.batchId;
 
-  // ---- Duplicate batch guard ----
   const importedBatches = getImportedBatches();
   if (importedBatches[batchId]) {
     return {
@@ -124,28 +103,25 @@ export function applyEFlowerImportResultToLedger(
     };
   }
 
-  // ---- Convert staged movements ----
   const validMovements: Movement[] = [];
   const errors: ApplyBatchError[] = [];
 
-  staged.movements.forEach((sm, idx) => {
-    const result = convertStagedMovement(sm, companyId, idx);
+  staged.movements.forEach((movement, index) => {
+    const result = convertStagedMovement(movement, companyId, index);
     if (Array.isArray(result)) {
       errors.push(...result);
-    } else {
-      validMovements.push(result);
+      return;
     }
+    validMovements.push(result);
   });
 
   const rowsApplied = validMovements.length;
   const rowsRejected = staged.movements.length - rowsApplied;
 
-  // ---- Persist to store ----
   if (validMovements.length > 0) {
     addMovements(validMovements);
   }
 
-  // Register batch summary via ledgerService.
   const currentBatches = getImportedBatches();
   currentBatches[batchId] = {
     kind: batch.kind,
@@ -154,11 +130,28 @@ export function applyEFlowerImportResultToLedger(
     rowsApplied,
     rowsRejected,
   };
+
   setLedgerState({
     companyId,
     movements: getAllMovements(),
     importedBatches: currentBatches,
   });
+
+  auditStore.addLog(
+    createAuditLogBase(
+      companyId,
+      'data_import',
+      batchId,
+      'import_applied',
+      actor.userId,
+      undefined,
+      JSON.stringify({ rowsApplied, rowsRejected, batchId }),
+      {
+        kind: batch.kind,
+        sourceFileName: batch.sourceFileName,
+      },
+    ),
+  );
 
   return { batchId, rowsApplied, rowsRejected, errors };
 }

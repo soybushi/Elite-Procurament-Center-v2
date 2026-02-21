@@ -1,4 +1,4 @@
-import { normalizeWarehouseName } from '../../utils/warehouseNormalizer'
+import { resolveWarehouseId } from '../../utils/warehouseNormalizer'
 
 export interface RawImportRow {
   warehouse: string
@@ -7,7 +7,7 @@ export interface RawImportRow {
 }
 
 export interface ParsedImportRow {
-  warehouse: string
+  warehouseId: string
   productId: string
   quantity: number
 }
@@ -55,8 +55,8 @@ export function parseImportRows(
   }
 
   for (const row of rows) {
-    const normalizedWarehouse = normalizeWarehouseName(row.warehouse)
-    if (!row.warehouse || normalizedWarehouse === '') {
+    const warehouseId = resolveWarehouseId(row.warehouse)
+    if (!row.warehouse || warehouseId === null) {
       invalid.push({ row, reason: 'INVALID_WAREHOUSE' })
       errorBreakdown.INVALID_WAREHOUSE++
       continue
@@ -77,7 +77,7 @@ export function parseImportRows(
       continue
     }
     valid.push({
-      warehouse: normalizedWarehouse,
+      warehouseId,
       productId: row.productId,
       quantity: row.quantity
     })

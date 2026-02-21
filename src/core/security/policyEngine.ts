@@ -4,8 +4,8 @@
 /* ------------------------------------------------------------------ */
 
 import type { Action } from './actions';
-import type { Role } from './roles';
 import type { CompanyId } from '../tenancy/company';
+import { POLICY_PRESETS } from '../../config/policyPresets';
 
 /* ------------------------------------------------------------------ */
 /*  Actor                                                             */
@@ -13,110 +13,9 @@ import type { CompanyId } from '../tenancy/company';
 
 export interface Actor {
   userId: string;
-  role: Role;
+  role: string;
   companyId: CompanyId;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Policy matrix                                                     */
-/* ------------------------------------------------------------------ */
-
-const POLICY: Record<Role, Partial<Record<Action, boolean>>> = {
-  admin: {
-    PR_CREATE: true,
-    PR_UPDATE: true,
-    PR_SUBMIT: true,
-    PR_APPROVE: true,
-    PR_REJECT: true,
-    PR_CONVERT_TO_PO: true,
-    TRANSFER_CREATE: true,
-    TRANSFER_UPDATE: true,
-    LEDGER_MOVE_IN: true,
-    LEDGER_MOVE_OUT: true,
-    LEDGER_ADJUST: true,
-    PO_CREATE: true,
-    PO_EDIT: true,
-    AI_READ: true,
-    AI_PROPOSE: true,
-    AI_EXECUTE: true,
-  },
-
-  procurement: {
-    PR_CREATE: true,
-    PR_UPDATE: true,
-    PR_SUBMIT: true,
-    PR_APPROVE: true,
-    PR_REJECT: true,
-    PR_CONVERT_TO_PO: true,
-    TRANSFER_CREATE: true,
-    TRANSFER_UPDATE: true,
-    LEDGER_MOVE_IN: true,
-    LEDGER_MOVE_OUT: true,
-    LEDGER_ADJUST: false,
-    PO_CREATE: true,
-    PO_EDIT: true,
-    AI_READ: true,
-    AI_PROPOSE: true,
-    AI_EXECUTE: false,
-  },
-
-  manager: {
-    PR_CREATE: true,
-    PR_UPDATE: true,
-    PR_SUBMIT: true,
-    PR_APPROVE: false,
-    PR_REJECT: false,
-    PR_CONVERT_TO_PO: false,
-    TRANSFER_CREATE: true,
-    TRANSFER_UPDATE: true,
-    LEDGER_MOVE_IN: false,
-    LEDGER_MOVE_OUT: false,
-    LEDGER_ADJUST: false,
-    PO_CREATE: false,
-    PO_EDIT: false,
-    AI_READ: true,
-    AI_PROPOSE: true,
-    AI_EXECUTE: false,
-  },
-
-  supervisor_hardgoods: {
-    PR_CREATE: true,
-    PR_UPDATE: true,
-    PR_SUBMIT: true,
-    PR_APPROVE: false,
-    PR_REJECT: false,
-    PR_CONVERT_TO_PO: false,
-    TRANSFER_CREATE: true,
-    TRANSFER_UPDATE: true,
-    LEDGER_MOVE_IN: false,
-    LEDGER_MOVE_OUT: false,
-    LEDGER_ADJUST: false,
-    PO_CREATE: false,
-    PO_EDIT: false,
-    AI_READ: true,
-    AI_PROPOSE: true,
-    AI_EXECUTE: false,
-  },
-
-  viewer: {
-    PR_CREATE: false,
-    PR_UPDATE: false,
-    PR_SUBMIT: false,
-    PR_APPROVE: false,
-    PR_REJECT: false,
-    PR_CONVERT_TO_PO: false,
-    TRANSFER_CREATE: false,
-    TRANSFER_UPDATE: false,
-    LEDGER_MOVE_IN: false,
-    LEDGER_MOVE_OUT: false,
-    LEDGER_ADJUST: false,
-    PO_CREATE: false,
-    PO_EDIT: false,
-    AI_READ: true,
-    AI_PROPOSE: false,
-    AI_EXECUTE: false,
-  },
-};
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                        */
@@ -124,7 +23,9 @@ const POLICY: Record<Role, Partial<Record<Action, boolean>>> = {
 
 /** Returns true if the actor's role permits the given action. */
 export function can(actor: Actor, action: Action): boolean {
-  return POLICY[actor.role]?.[action] === true;
+  const preset = POLICY_PRESETS[actor.role];
+  if (!preset) return false;
+  return preset[action] === true;
 }
 
 /**

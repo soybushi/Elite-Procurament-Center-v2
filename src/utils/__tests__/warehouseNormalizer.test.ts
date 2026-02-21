@@ -1,29 +1,32 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeWarehouseName } from '../warehouseNormalizer'
+import { normalizeWarehouseInput, resolveWarehouseId } from '../warehouseNormalizer'
 
-describe('normalizeWarehouseName', () => {
+describe('normalizeWarehouseInput', () => {
   it('normaliza "Miami"', () => {
-    expect(normalizeWarehouseName('Miami')).toBe('MIAMI')
+    expect(normalizeWarehouseInput('Miami')).toBe('MIAMI')
   })
   it('normaliza " miami "', () => {
-    expect(normalizeWarehouseName(' miami ')).toBe('MIAMI')
+    expect(normalizeWarehouseInput(' miami ')).toBe('MIAMI')
   })
-  it('normaliza "ELITE MIAMI"', () => {
-    expect(normalizeWarehouseName('ELITE MIAMI')).toBe('MIAMI')
+  it('conserva tokens de identidad', () => {
+    expect(normalizeWarehouseInput('ELITE MIAMI')).toBe('ELITE MIAMI')
   })
   it('normaliza "Elite-Miami"', () => {
-    expect(normalizeWarehouseName('Elite-Miami')).toBe('MIAMI')
-  })
-  it('normaliza "miami warehouse"', () => {
-    expect(normalizeWarehouseName('miami warehouse')).toBe('MIAMI')
-  })
-  it('normaliza " ELITE   miami   warehouse "', () => {
-    expect(normalizeWarehouseName(' ELITE   miami   warehouse ')).toBe('MIAMI')
+    expect(normalizeWarehouseInput('Elite-Miami')).toBe('ELITE-MIAMI')
   })
   it('normaliza string vacío', () => {
-    expect(normalizeWarehouseName('')).toBe('')
+    expect(normalizeWarehouseInput('')).toBe('')
   })
   it('normaliza solo espacios', () => {
-    expect(normalizeWarehouseName('   ')).toBe('')
+    expect(normalizeWarehouseInput('   ')).toBe('')
+  })
+})
+
+describe('resolveWarehouseId', () => {
+  it('resuelve id canonical', () => {
+    expect(resolveWarehouseId('ELITE MIAMI')).toBe('WH-006')
+  })
+  it('retorna null en warehouse desconocido', () => {
+    expect(resolveWarehouseId('WAREHOUSE INEXISTENTE')).toBeNull()
   })
 })

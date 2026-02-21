@@ -983,7 +983,7 @@ const InternalRequestsManager = ({ inv, whs, hist, sup, prc, masterProducts }: a
 
     // Filter Logic
     const filteredReqs = useMemo(() => {
-        return reqs.filter((r: PurchaseRequest) => !whFilter || r.wh.toLowerCase() === whFilter.toLowerCase());
+        return reqs.filter((r: PurchaseRequest) => !whFilter || (r.wh ?? '').toLowerCase() === whFilter.toLowerCase());
     }, [reqs, whFilter]);
 
     /** Delegate creation to purchaseRequestCreationService. */
@@ -1145,7 +1145,7 @@ const InternalRequestsManager = ({ inv, whs, hist, sup, prc, masterProducts }: a
                             >
                                 Gestionar
                             </button>
-                            {r.origin === 'Portal' && (
+                            {r.origin === 'ai' && (
                                 <button 
                                     onClick={() => setShareReq(r)}
                                     className={`px-4 py-3 rounded-xl border-2 transition-all ${r.status === 'draft' ? 'bg-bl text-white border-bl shadow-md shadow-bl/20' : 'bg-sf border-bd text-bl hover:bg-bl hover:text-white hover:border-bl'}`}

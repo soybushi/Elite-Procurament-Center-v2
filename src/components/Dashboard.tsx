@@ -4,6 +4,7 @@ import { AreaChart, Area, BarChart, Bar, CartesianGrid, Tooltip, ResponsiveConta
 import { InventoryItem, TransferItem, PriceItem, HistoryItem, OrderItem } from '../types';
 import { St } from './shared/UI';
 import { Store, ChevronDown, Activity, Map as MapIcon, TrendingUp, AlertCircle, Building2, Globe, CheckCircle2, ArrowRight } from 'lucide-react';
+import { resolveWarehouseId } from '../data/warehouseMaster';
 
 interface Props {
   inv: InventoryItem[];
@@ -89,7 +90,19 @@ export default function Dashboard({ inv, tr, prc, hist, ord, whs }: Props) {
   const fInv = useMemo(() => !isGlobal ? inv.filter(i => i.wh.toLowerCase() === selWh.toLowerCase()) : inv, [inv, selWh, isGlobal]);
   const fOrd = useMemo(() => !isGlobal ? ord.filter(o => o.wh.toLowerCase() === selWh.toLowerCase()) : ord, [ord, selWh, isGlobal]);
   const fHist = useMemo(() => !isGlobal ? hist.filter(h => h.wh.toLowerCase() === selWh.toLowerCase()) : hist, [hist, selWh, isGlobal]);
-  const fTr = useMemo(() => !isGlobal ? tr.filter(t => t.fr.toLowerCase() === selWh.toLowerCase() || t.to.toLowerCase() === selWh.toLowerCase()) : tr, [tr, selWh, isGlobal]);
+  const selectedWarehouseId = useMemo(() => resolveWarehouseId(selWh), [selWh]);
+  const fTr = useMemo(
+    () =>
+      !isGlobal
+        ? tr.filter((t) => {
+            if (selectedWarehouseId) {
+              return t.fromWarehouseId === selectedWarehouseId || t.toWarehouseId === selectedWarehouseId;
+            }
+            return (t.fr ?? '').toLowerCase() === selWh.toLowerCase() || (t.to ?? '').toLowerCase() === selWh.toLowerCase();
+          })
+        : tr,
+    [tr, selWh, selectedWarehouseId, isGlobal],
+  );
 
   // KPIs
   const crit = fInv.filter(i => i.wd > 0 && (i.q / (i.wd / 7)) < 7).length;
@@ -224,13 +237,13 @@ export default function Dashboard({ inv, tr, prc, hist, ord, whs }: Props) {
             )}
             {fTr.filter(x => x.st !== "received").map(r => (
               <div key={r.id} className="flex items-start gap-4 p-4 rounded-xl border border-bd/60 bg-s2/30 hover:bg-sf hover:shadow-md transition-all cursor-pointer group">
-                 <div className="mt-1.5 w-2 h-2 rounded-full transition-transform group-hover:scale-125" style={{ backgroundColor: r.st === 'preparing' ? 'var(--am)' : 'var(--bl)' }}></div>
+                 <div className="mt-1.5 w-2 h-2 rounded-full transition-transform group-hover:scale-125" style={{ backgroundColor: r.st === 'draft' || r.st === 'preparing' || r.st === 'pending' ? 'var(--am)' : 'var(--bl)' }}></div>
                  <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-bold text-tx">{r.id}</span>
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sf border border-bd/50" style={{ color: r.st === 'preparing' ? 'var(--am)' : 'var(--bl)' }}>{r.st.replace('_', ' ')}</span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sf border border-bd/50" style={{ color: r.st === 'draft' || r.st === 'preparing' || r.st === 'pending' ? 'var(--am)' : 'var(--bl)' }}>{r.st.replace('_', ' ')}</span>
                     </div>
-                    <div className="text-xs text-t2 mt-1 truncate font-medium">{r.fr.replace('ELITE', '')} → {r.to.replace('ELITE', '')}</div>
+                    <div className="text-xs text-t2 mt-1 truncate font-medium">{(r.fr ?? '').replace('ELITE', '')} → {(r.to ?? '').replace('ELITE', '')}</div>
                  </div>
               </div>
             ))}

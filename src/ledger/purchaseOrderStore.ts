@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { PurchaseOrder, PurchaseOrderLine } from '../types';
+import { idbStorage } from '../infra/idbStorage';
 
 /* ------------------------------------------------------------------ */
 /*  Zustand-based reactive store for PurchaseOrders                   */
@@ -16,11 +17,32 @@ interface PurchaseOrderState {
   reset: () => void;
 }
 
+function readLegacyPurchaseOrders(): {
+  purchaseOrders: PurchaseOrder[];
+  purchaseOrderLines: PurchaseOrderLine[];
+} {
+  if (typeof window === 'undefined') {
+    return { purchaseOrders: [], purchaseOrderLines: [] };
+  }
+  try {
+    const raw = window.localStorage.getItem('ef-pos');
+    if (!raw) return { purchaseOrders: [], purchaseOrderLines: [] };
+    const parsed = JSON.parse(raw) as {
+      state?: { purchaseOrders?: PurchaseOrder[]; purchaseOrderLines?: PurchaseOrderLine[] };
+    };
+    return {
+      purchaseOrders: parsed?.state?.purchaseOrders ?? [],
+      purchaseOrderLines: parsed?.state?.purchaseOrderLines ?? [],
+    };
+  } catch {
+    return { purchaseOrders: [], purchaseOrderLines: [] };
+  }
+}
+
 export const usePurchaseOrderStore = create<PurchaseOrderState>()(
   persist(
     (set) => ({
-      purchaseOrders: [],
-      purchaseOrderLines: [],
+      ...readLegacyPurchaseOrders(),
 
       addOrder: (order: PurchaseOrder) =>
         set((state) => ({
@@ -45,7 +67,7 @@ export const usePurchaseOrderStore = create<PurchaseOrderState>()(
     }),
     {
       name: 'ef-pos',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({
         purchaseOrders: state.purchaseOrders,
         purchaseOrderLines: state.purchaseOrderLines,

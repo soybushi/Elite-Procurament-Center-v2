@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TransferItem } from '../types';
+import { idbStorage } from '../infra/idbStorage';
 
 /* ------------------------------------------------------------------ */
 /*  Zustand-based reactive store for Transfers                        */
@@ -14,10 +15,22 @@ interface TransferState {
   reset: () => void;
 }
 
+function readLegacyTransfers(): TransferItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem('ef-transfers');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { state?: { transfers?: TransferItem[] } };
+    return parsed?.state?.transfers ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export const useTransferStore = create<TransferState>()(
   persist(
     (set) => ({
-      transfers: [],
+      transfers: readLegacyTransfers(),
       addTransfer: (transfer) =>
         set((state) => ({
           transfers: [...state.transfers, transfer],
@@ -32,7 +45,7 @@ export const useTransferStore = create<TransferState>()(
     }),
     {
       name: 'ef-transfers',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({ transfers: state.transfers }),
     },
   ),

@@ -3,7 +3,7 @@
 /*  Pure functions — no side-effects, no external dependencies.       */
 /* ------------------------------------------------------------------ */
 
-import { normalizeWarehouseName } from '../../config/warehouseMaster';
+import { normalizeWarehouseInput } from '../../config/warehouseMaster';
 import { validateBatchBasics, validateStagedProduct, validateStagedMovement } from './eflowerValidators';
 import type {
   EFlowerImportKind,
@@ -66,7 +66,7 @@ function mapProductRow(row: Record<string, unknown>): StagedProduct {
 function mapInventoryMovementRow(row: Record<string, unknown>): StagedMovement {
   return {
     sku: pick(row, 'E CODE', 'ECODE', 'CODE', 'SKU', 'Codigo', 'sku') ?? '',
-    warehouseName: normalizeWarehouseName(
+    warehouseName: normalizeWarehouseInput(
       pick(row, 'WAREHOUSE', 'Bodega', 'WH', 'warehouse', 'BODEGA') ?? '',
     ),
     type: 'receipt',
@@ -82,7 +82,7 @@ function mapInventoryMovementRow(row: Record<string, unknown>): StagedMovement {
 function mapHistoryRow(row: Record<string, unknown>): StagedMovement {
   return {
     sku: pick(row, 'PRODUCT', 'Producto', 'E CODE', 'SKU', 'sku') ?? '',
-    warehouseName: normalizeWarehouseName(
+    warehouseName: normalizeWarehouseInput(
       pick(row, 'WAREHOUSE', 'Bodega', 'WH', 'BODEGA') ?? '',
     ),
     type: 'receipt',
@@ -98,7 +98,7 @@ function mapHistoryRow(row: Record<string, unknown>): StagedMovement {
 function mapOpenOrderRow(row: Record<string, unknown>): StagedMovement {
   return {
     sku: pick(row, 'PRODUCT', 'Producto', 'E CODE', 'SKU') ?? '',
-    warehouseName: normalizeWarehouseName(
+    warehouseName: normalizeWarehouseInput(
       pick(row, 'WAREHOUSE', 'Bodega', 'WH', 'BODEGA') ?? '',
     ),
     type: 'receipt',
@@ -144,7 +144,7 @@ function buildExternalRefs(row: Record<string, unknown>): Record<string, string>
  * Maps raw E Flower rows into the staging area.
  *
  * - Reads fields defensively using alternate column names.
- * - Normalises warehouse names via `normalizeWarehouseName`.
+ * - Normalises warehouse names via `normalizeWarehouseInput`.
  * - Validates each staged record and populates batch errors.
  * - Returns a fully formed `ImportResult`.
  */

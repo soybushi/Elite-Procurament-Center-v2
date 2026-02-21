@@ -8,6 +8,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Movement } from '../types';
 import type { LedgerState } from './types';
+import { idbStorage } from '../infra/idbStorage';
 
 /* ------------------------------------------------------------------ */
 /*  Zustand state shape (data + actions)                              */
@@ -22,6 +23,24 @@ interface LedgerZustandState extends LedgerState {
   _addMovements: (movs: Movement[]) => void;
 }
 
+function readLegacyLedgerState(): LedgerState {
+  if (typeof window === 'undefined') {
+    return { companyId: '', movements: [], importedBatches: {} };
+  }
+  try {
+    const raw = window.localStorage.getItem('ef-ledger');
+    if (!raw) return { companyId: '', movements: [], importedBatches: {} };
+    const parsed = JSON.parse(raw) as { state?: LedgerState };
+    return {
+      companyId: parsed?.state?.companyId ?? '',
+      movements: parsed?.state?.movements ?? [],
+      importedBatches: parsed?.state?.importedBatches ?? {},
+    };
+  } catch {
+    return { companyId: '', movements: [], importedBatches: {} };
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Reactive Zustand store — persisted to localStorage "ef-ledger"   */
 /* ------------------------------------------------------------------ */
@@ -29,9 +48,7 @@ interface LedgerZustandState extends LedgerState {
 export const useLedgerStore = create<LedgerZustandState>()(
   persist(
     (set) => ({
-      companyId: '',
-      movements: [],
-      importedBatches: {},
+      ...readLegacyLedgerState(),
 
       _setState: (next: LedgerState) =>
         set({
@@ -54,7 +71,7 @@ export const useLedgerStore = create<LedgerZustandState>()(
     }),
     {
       name: 'ef-ledger',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({
         companyId: state.companyId,
         movements: state.movements,

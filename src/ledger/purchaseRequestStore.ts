@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { PurchaseRequest } from '../types';
+import { idbStorage } from '../infra/idbStorage';
 
 /* ------------------------------------------------------------------ */
 /*  Zustand-based reactive store for PurchaseRequests                 */
@@ -14,10 +15,22 @@ interface PurchaseRequestState {
   reset: () => void;
 }
 
+function readLegacyPurchaseRequests(): PurchaseRequest[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem('ef-reqs');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { state?: { purchaseRequests?: PurchaseRequest[] } };
+    return parsed?.state?.purchaseRequests ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export const usePurchaseRequestStore = create<PurchaseRequestState>()(
   persist(
     (set) => ({
-      purchaseRequests: [],
+      purchaseRequests: readLegacyPurchaseRequests(),
       addRequest: (request) =>
         set((state) => ({
           purchaseRequests: [...state.purchaseRequests, request],
@@ -32,7 +45,7 @@ export const usePurchaseRequestStore = create<PurchaseRequestState>()(
     }),
     {
       name: 'ef-reqs',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({ purchaseRequests: state.purchaseRequests }),
     },
   ),

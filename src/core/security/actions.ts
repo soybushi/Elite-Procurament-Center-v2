@@ -16,6 +16,7 @@ export type Action =
   | 'LEDGER_ADJUST'
   | 'PO_CREATE'
   | 'PO_EDIT'
+  | 'DATA_IMPORT'
   | 'AI_READ'
   | 'AI_PROPOSE'
   | 'AI_EXECUTE';

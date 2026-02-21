@@ -92,9 +92,9 @@ export function transitionPurchaseRequestStatus(
   newStatus: PurchaseRequestStatus,
   performedByUserId: string,
 ): TransitionedPurchaseRequest {
+  const actor = getActor();
   const action = STATUS_ACTION_MAP[newStatus];
   if (action) {
-    const actor = getActor();
     assertCan(actor, action);
   }
 
@@ -110,6 +110,7 @@ export function transitionPurchaseRequestStatus(
   const updated: TransitionedPurchaseRequest = {
     ...request,
     status: newStatus,
+    version: Math.max(request.version ?? 1, 1) + 1,
   };
 
   if (newStatus === 'submitted') {
@@ -127,7 +128,7 @@ export function transitionPurchaseRequestStatus(
 
   // Record audit log.
   const log = createAuditLogBase(
-    request.wh,               // companyId placeholder (wh used as context)
+    request.companyId || actor.companyId,
     'purchase_request',
     request.id,
     'status_changed',
@@ -148,7 +149,6 @@ export function transitionPurchaseRequestStatus(
 
   // Emit domain event when PR reaches 'approved'.
   if (newStatus === 'approved') {
-    const actor = getActor();
     publish({
       type: 'PR_APPROVED',
       payload: {
@@ -184,12 +184,31 @@ export function updatePurchaseRequest(updated: PurchaseRequest): void {
     throw new Error('PurchaseRequest not found.');
   }
 
-  purchaseRequestStore.updateRequest(updated);
+  if (updated.id !== current.id) {
+    throw new Error('IMMUTABLE_FIELD:id');
+  }
+  if (updated.companyId !== current.companyId) {
+    throw new Error('IMMUTABLE_FIELD:companyId');
+  }
+  if (updated.warehouseId !== current.warehouseId) {
+    throw new Error('IMMUTABLE_FIELD:warehouseId');
+  }
+
+  const next: PurchaseRequest = {
+    ...current,
+    ...updated,
+    id: current.id,
+    companyId: current.companyId,
+    warehouseId: current.warehouseId,
+    version: Math.max(current.version ?? 1, 1) + 1,
+  };
+
+  purchaseRequestStore.updateRequest(next);
 
   const log = createAuditLogBase(
-    updated.wh,
+    current.companyId || actor.companyId,
     'purchase_request',
-    updated.id,
+    current.id,
     'updated',
     actor.userId,
   );

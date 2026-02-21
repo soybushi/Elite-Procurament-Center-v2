@@ -56,11 +56,16 @@ export interface OrderItem {
 
 export interface TransferItem {
   id: string;
-  fr: string;
-  to: string;
+  companyId: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  createdBy: string;
+  createdAt: string;
+  fr?: string; // deprecated legacy snapshot
+  to?: string; // deprecated legacy snapshot
   it: { nm: string; qt: number }[];
-  st: string;
-  cr: string;
+  st: 'draft' | 'in_transit' | 'received' | 'preparing' | 'pending';
+  cr?: string; // deprecated legacy field
   dp: string | null;
   rv: string | null;
   nt: string;
@@ -95,14 +100,16 @@ export interface RequestItem {
 export interface PurchaseRequest {
   id: string;
   companyId: string;
-  wh: string;
+  warehouseId: string;
+  wh?: string; // deprecated legacy snapshot
   status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'converted';
   createdAt: string;
-  createdBy?: string; // userId from actor (stamped by service)
+  createdBy: string;
+  version: number;
   items: RequestItem[];
   token?: string; // Secure link token
   recipientEmail?: string; // Warehouse contact email
-  origin?: 'Manual' | 'Excel' | 'Portal'; // Source of the request
+  origin?: 'manual' | 'import' | 'ai'; // Source of the request
   
   // Aggregate fields
   totalValue?: number;
@@ -302,13 +309,15 @@ export type AuditEntityType =
   | 'purchase_request'
   | 'purchase_order'
   | 'transfer'
-  | 'movement';
+  | 'movement'
+  | 'data_import';
 
 export type AuditAction =
   | 'created'
   | 'updated'
   | 'status_changed'
-  | 'converted';
+  | 'converted'
+  | 'import_applied';
 
 export interface AuditLog {
   id: string;

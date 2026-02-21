@@ -9,6 +9,7 @@ import { createAuditLogBase } from '../config/auditDefaults';
 import { auditStore } from './auditStore';
 import { assertCan } from '../core/security/policyEngine';
 import { getActor } from '../stores/authStore';
+import { resolveWarehouseId } from '../data/warehouseMaster';
 
 /* ------------------------------------------------------------------ */
 /*  Input type — minimal data the caller must provide                 */
@@ -63,16 +64,26 @@ export function seedTransferIdCounter(existingCount: number): void {
 export function createTransfer(input: CreateTransferInput): TransferItem {
   const actor = getActor();
   assertCan(actor, 'TRANSFER_CREATE');
+  const fromWarehouseId = resolveWarehouseId(input.fr);
+  const toWarehouseId = resolveWarehouseId(input.to);
+  if (!fromWarehouseId || !toWarehouseId) {
+    throw new Error('WAREHOUSE_UNKNOWN');
+  }
 
   const id = generateId();
-  const now = new Date().toISOString().split('T')[0];
+  const now = new Date().toISOString();
 
   const transfer: TransferItem = {
     id,
+    companyId: actor.companyId,
+    fromWarehouseId,
+    toWarehouseId,
+    createdBy: actor.userId,
+    createdAt: now,
     fr: input.fr,
     to: input.to,
     it: input.it,
-    st: 'pending',
+    st: 'draft',
     cr: now,
     dp: null,
     rv: null,
