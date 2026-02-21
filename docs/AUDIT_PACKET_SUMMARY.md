@@ -2,7 +2,7 @@
 
 ## Contexto
 - Rama: `chore/audit-fase4-master-alignment`
-- Documento master usado: `docs/MASTER_CURRENT.md`
+- Documento master canónico: `docs/MASTER_DOCUMENT.md` (snapshot derivado: `docs/MASTER_CURRENT.md`)
 - Objetivo: certificar FASE 1–3 y solicitar GO/NO-GO para avanzar a correcciones FASE 4.
 
 ## Evidencia ejecutada

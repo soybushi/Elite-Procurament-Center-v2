@@ -67,9 +67,9 @@ Esta pregunta no es opcional. Debe formularse explícitamente antes de proceder.
 
 ---
 
-## 3. Contrato Copilot
+## 3. Contrato de asistente IA
 
-Toda instrucción dirigida a Copilot (o cualquier asistente IA) debe cumplir el siguiente formato:
+Toda instrucción dirigida al asistente IA debe cumplir el siguiente formato:
 
 ### 3.1 Reglas de instrucción
 
@@ -140,8 +140,8 @@ Toda respuesta a una solicitud de cambio, análisis o diagnóstico debe seguir e
 ## Fase
 [A qué fase pertenece este cambio: fase actual / estructural / funcional / futura]
 
-## Instrucción Copilot (si aplica)
-[Instrucción directa siguiendo el Contrato Copilot de la sección 3]
+## Instrucción de asistente IA (si aplica)
+[Instrucción directa siguiendo el Contrato de asistente IA de la sección 3]
 
 ## Qué no tocar
 [Lista explícita de archivos y áreas protegidas]
@@ -155,7 +155,7 @@ Toda respuesta a una solicitud de cambio, análisis o diagnóstico debe seguir e
 
 ### 5.2 Reglas adicionales
 
-- Todos los campos son obligatorios. Si no aplica "Instrucción Copilot", escribir "No aplica — solo diagnóstico".
+- Todos los campos son obligatorios. Si no aplica "Instrucción de asistente IA", escribir "No aplica — solo diagnóstico".
 - El campo "Resumen para registro" debe ser una sola línea, apta para copiar a un changelog o bitácora.
 - No se permite omitir "Riesgos" ni "Qué no tocar", incluso si parecen obvios.
 

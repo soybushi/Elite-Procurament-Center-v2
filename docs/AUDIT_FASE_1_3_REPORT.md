@@ -1,6 +1,6 @@
 # AUDITORÍA FASE 1–3 — Reporte de Cumplimiento
 
-> Generado con Claude Code (solo lectura).  
+> Generado por herramienta automatizada configurable (solo lectura).
 > Rama: chore/audit-fase4-master-alignment
 
 ## FASE 1 — Core Engine Foundation
